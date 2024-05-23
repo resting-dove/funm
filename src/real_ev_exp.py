@@ -55,13 +55,13 @@ if __name__ == "__main__":
 
     plt.plot(np.arange(param["num_restarts"] + 1), norms, label="jax")
     plt.plot(np.arange(param["num_restarts"] + 1), npnorms, label="numpy")
-    plt.plot(np.arange(1, param["num_restarts"] + 1), update_norms, label="jax update norms")
-    plt.plot(np.arange(1, param["num_restarts"] + 1), npupdate_norms, label="numpy update norms")
+    plt.scatter(np.arange(1, param["num_restarts"] + 1), update_norms, label="jax update norms")
+    plt.scatter(np.arange(1, param["num_restarts"] + 1), npupdate_norms, label="numpy update norms")
     plt.title("Error of restarted expm for real EV matrix")
     plt.legend(framealpha=.5)
     plt.yscale("log")
     plt.ylim(bottom=max(np.finfo(EWs[0].dtype).eps, plt.ylim()[0], scnorm) / 10)
-    plt.xlabel("Arnoldi iterations")
+    plt.xlabel("Restarts")
     plt.show()
 
     plt.title("Ritz values of restarted expm for real EV matrix")

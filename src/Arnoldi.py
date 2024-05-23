@@ -1,9 +1,10 @@
 import numpy as np
 
 
-def extend_arnoldi(A, V_big: np.array, m: int, H: np.array, s: int, trunc=-1, reorth_num=0):
-    """Extend a given Arnoldi decomposition (V_big, H) of dimension s up to dimention m.
-    Assume that H is at least of size (m+1, m+1)."""
+def extend_arnoldi(A, V_big: np.array, m: int, s: int, trunc=-1, reorth_num=0):
+    """Extend a given Arnoldi decomposition of dimension s up to dimention m.
+    """
+    H = np.zeros((m + 1, m + 1))
     eps = 1e-15
     trunc = trunc if trunc >= 0 else m - s
     breakdown = False

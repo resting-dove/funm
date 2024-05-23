@@ -15,10 +15,9 @@ def funm_krylov(A, b: np.array, param):
     eigvals = {}
     update_norms = []
     for k in range(param["num_restarts"]):
-        H = np.zeros((m + 1, m + 1))
         V_big[:, k * m] = w
 
-        (w, V_big, H, h, breakdown) = extend_arnoldi(A=A, V_big=V_big, H=H, s=k * m, m=(k + 1) * m)
+        (w, V_big, H, h, breakdown) = extend_arnoldi(A=A, V_big=V_big, s=k * m, m=(k + 1) * m)
         # (w, V_big, H, h, breakdown) = (
         #    jit(Arnoldi_2, static_argnames=["steps", "trunc", "reorth_num"])(A, V_big, H, s=k * m, steps=m, trunc=m))
         H_full[k * m: (k + 1) * m, k * m: (k + 1) * m] = H
@@ -30,5 +29,5 @@ def funm_krylov(A, b: np.array, param):
         f = beta * (V_big[:, k * m: (k + 1) * m] @ H_exp_jax) + f
         fs[:, k] = f
         eigvals[k] = np.linalg.eigvals(H_full[:(k + 1) * m, :(k + 1) * m])
-        update_norms.append(np.linalg.norm(beta * H_exp_jax))
+        update_norms.append(np.linalg.norm(beta * (V_big[:, k * m: (k + 1) * m] @ H_exp_jax)))
     return fs, eigvals, update_norms

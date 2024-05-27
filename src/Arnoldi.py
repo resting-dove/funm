@@ -1,4 +1,5 @@
 import numpy as np
+import scipy
 
 
 def extend_arnoldi(A, V_big: np.array, m: int, s: int, trunc=-1, reorth_num=0):
@@ -37,3 +38,39 @@ def extend_arnoldi(A, V_big: np.array, m: int, s: int, trunc=-1, reorth_num=0):
     h = H[m - s, m - s - 1]
     H = H[:m - s, :m - s]
     return w, V_big, H, h, breakdown
+
+
+def arnoldi(A, w: np.array, m: int):
+    """Calculate an Arnoldi decomposition of dimension m.
+    """
+    if scipy.sparse.issparse(A):
+        def mat_vec(x):
+            return A.dot(x)
+    else:
+        def mat_vec(x):
+            return np.dot(A, x)
+    H = np.zeros((m + 1, m + 1))
+    new_V_big = np.empty((w.shape[0], m))
+    new_V_big[:, 0] = w
+    # make the k_small column in H and the k_small+1 column in V
+    for k_small in np.arange(m):
+        w = new_V_big[:, k_small]
+        w = mat_vec(w)
+
+        sj = 0  # jax.lax.max(0, k_small - trunc)  # start orthogonalizing from this index
+        for j in np.arange(sj, k_small + 1):
+            v = new_V_big[:, j]
+            ip = np.dot(v, w)
+            H[j, k_small] += ip
+            w = w - ip * v
+        w2 = np.dot(w, w)
+        H[k_small + 1, k_small] = np.sqrt(w2)
+
+        w = w / H[k_small + 1, k_small]
+        if k_small < m - 1:
+            new_V_big[:, k_small + 1] = w
+
+    # h = H[m, m - 1]
+    H = H[:m + 1, :m]
+
+    return w, new_V_big, H  # , h

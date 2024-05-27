@@ -68,8 +68,8 @@ def arnoldi_jittable(A, w: jax.Array, m: int):
         H = H.at[k_small + 1, k_small].set(jnp.sqrt(w2))
 
         w = w / H[k_small + 1, k_small]
-        # if k < m:  # this should always be true
-        new_V_big = new_V_big.at[:, k_small + 1].set(w)
+        if k_small < m - 1:
+            new_V_big = new_V_big.at[:, k_small + 1].set(w)
 
     #h = H[m, m - 1]
     H = H[:m + 1, :m]

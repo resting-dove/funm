@@ -2,6 +2,7 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from functools import partial
+from jax.experimental.sparse import sparsify
 
 
 def extend_arnoldi(A, V_big: jax.Array, m: int, s: int, trunc=-1, reorth_num=0):
@@ -42,6 +43,10 @@ def extend_arnoldi(A, V_big: jax.Array, m: int, s: int, trunc=-1, reorth_num=0):
     return w, V_big, H, h, breakdown
 
 
+@sparsify
+def mat_vec(A, x:jax.Array):
+    return A @ x
+
 @partial(jax.jit, static_argnames=["m"])
 def arnoldi_jittable(A, w: jax.Array, m: int):
     """Calculate an Arnoldi decomposition of dimension m.
@@ -56,7 +61,7 @@ def arnoldi_jittable(A, w: jax.Array, m: int):
     # this is the k - s column in H
     for k_small in np.arange(m):
         w = new_V_big[:, k_small]
-        w = jnp.dot(A, w)
+        w = mat_vec(A, w)  # jnp.dot(A, w)
 
         sj = 0  # jax.lax.max(0, k_small - trunc)  # start orthogonalizing from this index
         for j in jnp.arange(sj, k_small + 1):

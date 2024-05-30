@@ -64,7 +64,7 @@ def funm_krylov_v2(A, b: np.array, param, calculate_eigvals=True):
 def variable_expm(A, b: np.array):
     n = b.shape[0]
     beta = np.linalg.norm(b)
-    w = b
+    w = b / beta
     m = 4
     ms = []
     V_big = np.zeros((n, n + 20))

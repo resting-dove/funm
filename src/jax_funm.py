@@ -10,7 +10,7 @@ from jax_Arnoldi import extend_arnoldi, arnoldi_jittable
 def funm_krylov(A, b: jax.Array, param):
     n = b.shape[0]
     beta = jnp.linalg.norm(b)
-    w = b
+    w = b / beta
     m = param["restart_length"]
     V_big = jnp.zeros((n, param["num_restarts"] * m + 20))
     f = jnp.zeros_like(b)
@@ -67,7 +67,7 @@ def funm_krylov_jittable(A, b: jax.Array, param):
     cpu_device = jax.devices('cpu')[0]
     n = b.shape[0]
     beta = float(jnp.linalg.norm(b))
-    w = b
+    w = b / beta
     m = param["restart_length"]
     V_big = jnp.zeros((n, 0))
     f = jnp.zeros_like(b)

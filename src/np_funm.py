@@ -6,7 +6,7 @@ import scipy
 def funm_krylov(A, b: np.array, param):
     n = b.shape[0]
     beta = np.linalg.norm(b)
-    w = b
+    w = b / beta
     m = param["restart_length"]
     V_big = np.zeros((n, param["num_restarts"] * m + 20))
     f = np.zeros_like(b)
@@ -32,12 +32,12 @@ def funm_krylov(A, b: np.array, param):
         update_norms.append(np.linalg.norm(beta * (V_big[:, k * m: (k + 1) * m] @ H_exp_jax)))
     return fs, eigvals, update_norms
 
-def funm_krylov_v2(A, b: np.array, param):
+def funm_krylov_v2(A, b: np.array, param, calculate_eigvals=True):
     """Variation on the restarted Krylov implementation, influenced by the constraints that Jax puts on variable
     shapes."""
     n = b.shape[0]
     beta = float(np.linalg.norm(b))
-    w = b
+    w = b / beta
     m = param["restart_length"]
     V_big = np.zeros((n, 0), b.dtype)
     f = np.zeros_like(b)
@@ -54,7 +54,8 @@ def funm_krylov_v2(A, b: np.array, param):
         H_exp_jax = np.array(H_exp)[-m:, 0]
         f = beta * (V_big[:, k * m: (k + 1) * m] @ H_exp_jax) + f
         fs[:, k] = f
-        eigvals[k] = np.linalg.eigvals(H_full[:(k + 1) * m, :(k + 1) * m])
+        if calculate_eigvals:
+            eigvals[k] = np.linalg.eigvals(H_full[:(k + 1) * m, :(k + 1) * m])
         update_norms.append(np.linalg.norm(beta * (V_big[:, k * m: (k + 1) * m] @ H_exp_jax)))
 
     return fs, eigvals, update_norms

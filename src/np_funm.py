@@ -39,24 +39,21 @@ def funm_krylov_v2(A, b: np.array, param, calculate_eigvals=True):
     beta = float(np.linalg.norm(b))
     w = b / beta
     m = param["restart_length"]
-    V_big = np.zeros((n, 0), b.dtype)
     f = np.zeros_like(b)
     H_full = np.zeros((m * param["num_restarts"] + 2, m * param["num_restarts"]), dtype=b.dtype)
     fs = np.zeros((n, param["num_restarts"]))
     eigvals = {}
     update_norms = []
     for k in range(param["num_restarts"]):
-        (w, new_V_big, H) = arnoldi(A=A, w=w, m=m)
-        V_big = np.concatenate([V_big, new_V_big], axis=1)
+        (w, V, H) = arnoldi(A=A, w=w, m=m)
         H_full[k * m: (k + 1) * m + 1, k * m: (k + 1) * m] = H
-        #H_full[(k + 1) * m, (k + 1) * m - 1] = h
         H_exp = scipy.linalg.expm(H_full[: (k + 1) * m, : (k + 1) * m])
         H_exp_jax = np.array(H_exp)[-m:, 0]
-        f = beta * (V_big[:, k * m: (k + 1) * m] @ H_exp_jax) + f
+        f = beta * (V @ H_exp_jax) + f
         fs[:, k] = f
         if calculate_eigvals:
             eigvals[k] = np.linalg.eigvals(H_full[:(k + 1) * m, :(k + 1) * m])
-        update_norms.append(np.linalg.norm(beta * (V_big[:, k * m: (k + 1) * m] @ H_exp_jax)))
+        update_norms.append(np.linalg.norm(beta * (V @ H_exp_jax)))
 
     return fs, eigvals, update_norms
 

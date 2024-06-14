@@ -15,8 +15,10 @@ from jax_Arnoldi import arnoldi_jittable
 import numpy as np
 import scipy
 
-from Arnoldi import arnoldi
 
+@partial(jax.vmap, in_axes=(None, 0, 0), out_axes=0)
+def evalnodal_(x, nodes, subdiag):
+    return subdiag / (x - nodes)
 
 def evalnodal(x: jax.Array, nodes: jax.Array, subdiag: jax.Array):
     """
@@ -26,11 +28,7 @@ def evalnodal(x: jax.Array, nodes: jax.Array, subdiag: jax.Array):
     :param subdiag:
     :return:
     """
-    if len(nodes) != len(subdiag):
-        raise RuntimeError("Evalnodal: nodes and subdiag need to be of same length.")
-    p = jnp.ones_like(x)
-    for j in range(len(nodes)):
-        p = p * subdiag[j] / (x - nodes[j])
+    p = evalnodal_(x, nodes, subdiag).prod(0)
     return p
 
 
@@ -79,6 +77,12 @@ def phi(theta: jax.Array, aa: float, bb: float, cc: float):
     return aa + 1j * bb * theta - cc * theta ** 2
 
 
+@partial(jax.vmap, in_axes=(None, None, 0, 0), out_axes=(0))
+def orig_quad_solve_shifted(H, e1, c, z):
+    mat = z * jnp.eye(*H.shape) - H
+    r = jax.scipy.linalg.solve(mat, e1)
+    return c * r
+
 def orig_quad(N: int, H: jax.Array, ritz_values: jax.Array, subdiag: jax.Array, tol: float):
     m = H.shape[1]
 
@@ -97,13 +101,9 @@ def orig_quad(N: int, H: jax.Array, ritz_values: jax.Array, subdiag: jax.Array, 
     tt = z[: N // 2]
     rho_vec = evalnodal(tt, ritz_values, subdiag)
 
-    h1 = jnp.zeros((m, 1))
     c = c[: N // 2] * rho_vec
-    for j in range(N // 2):
-        mat = z[j] * jnp.eye(*H.shape) - H
-        # TODO: Does this realize these are systems of shifted LS?
-        r = jax.scipy.linalg.solve(mat, jnp.eye(m, 1))
-        h1 = h1 - c[j] * r
+    h1 = -1 * orig_quad_solve_shifted(H, jnp.eye(m, 1), c, z[: N // 2]).sum(0)
+
     h1 = 2 * jnp.real(h1)
     return h1
 
@@ -148,7 +148,7 @@ def expm_quad(A: jax.Array, b: jax.Array, max_restarts: int, restart_length: int
     for k in range(max_restarts):
         if stop_condition:
             break
-        (v, V, H, breakdown) = arnoldi(A=A, w=v, m=m, trunc=arnoldi_trunc)
+        (v, V, H, breakdown) = arnoldi_jittable(A=A, w=v, m=m, trunc=arnoldi_trunc)
         if breakdown:
             stop_condition = True
             print("Arnoldi breakdown occured.")

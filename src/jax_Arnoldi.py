@@ -47,11 +47,13 @@ def extend_arnoldi(A, V_big: jax.Array, m: int, s: int, trunc=-1, reorth_num=0):
 def mat_vec(A, x:jax.Array):
     return A @ x
 
-@partial(jax.jit, static_argnames=["m"])
-def arnoldi_jittable(A, w: jax.Array, m: int):
+
+@partial(jax.jit, static_argnames=["m", "trunc"])
+def arnoldi_jittable(A, w: jax.Array, m: int, trunc=jnp.inf):
     """Calculate an Arnoldi decomposition of dimension m.
     V_big might be an earlier the basis from earlier Arnoldi decompositions.
     """
+    breakdown = False
     H = jnp.zeros((m + 1, m + 1))
     new_V_big = jnp.empty((w.shape[0], m))
 
@@ -63,20 +65,20 @@ def arnoldi_jittable(A, w: jax.Array, m: int):
         w = new_V_big[:, k_small]
         w = mat_vec(A, w)  # jnp.dot(A, w)
 
-        sj = 0  # jax.lax.max(0, k_small - trunc)  # start orthogonalizing from this index
+        sj = max(0, k_small - trunc)  # start orthogonalizing from this index
         for j in jnp.arange(sj, k_small + 1):
             v = new_V_big[:, j]
             ip = jnp.dot(v, w)
             H = H.at[j, k_small].add(ip)
             w = w - ip * v
-        w2 = jnp.dot(w, w)
-        H = H.at[k_small + 1, k_small].set(jnp.sqrt(w2))
-
-        w = w / H[k_small + 1, k_small]
+        eta = jnp.sqrt(jnp.dot(w, w))
+        H = H.at[k_small + 1, k_small].set(eta)
+        breakdown = jnp.abs(eta) < k_small * jnp.finfo(eta.dtype).eps * jnp.linalg.norm(H[:, k_small])
+        w = w / eta
         if k_small < m - 1:
             new_V_big = new_V_big.at[:, k_small + 1].set(w)
 
     #h = H[m, m - 1]
     H = H[:m + 1, :m]
 
-    return w, new_V_big, H#, h
+    return w, new_V_big, H, breakdown

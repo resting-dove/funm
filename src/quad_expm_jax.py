@@ -20,6 +20,7 @@ import scipy
 def evalnodal_(x, nodes, subdiag):
     return subdiag / (x - nodes)
 
+@jax.jit
 def evalnodal(x: jax.Array, nodes: jax.Array, subdiag: jax.Array):
     """
     Returns Prod(subdiag) / (x - nodes)
@@ -32,10 +33,12 @@ def evalnodal(x: jax.Array, nodes: jax.Array, subdiag: jax.Array):
     return p
 
 
+@jax.jit
 def is_upper_tri(A: jax.Array, tol=1e-6):
     return jnp.all(A[jnp.tril_indices(A.shape[0], -1)] < tol)
 
 
+@jax.jit
 def eigs_2x2(A: jax.Array):
     """Source:
     https://www.johndcook.com/blog/2021/05/07/trick-for-2x2-eigenvalues/
@@ -45,6 +48,18 @@ def eigs_2x2(A: jax.Array):
     d = jnp.sqrt(m ** 2 - p)
     return jnp.array([m + d, m - d])
 
+@jax.jit
+def calculate_qr_iteration(carry):
+    A, tol, shift, I, i, _ = carry
+    q, r = jax.scipy.linalg.qr(A - shift * I)
+    A = jnp.dot(r, q) + shift * I
+    converged = jnp.abs(A[-1, -2]) < tol
+    return A, tol, shift, I, i + 1, converged
+
+@jax.jit
+def is_qr_iteration_converged(carry):
+    _, _, _, _, _, converged = carry
+    return converged
 
 def get_eigvals_qr(H: jax.Array, max_iterations=1000, tol=1e-6):
     """Calculate the eigenvalues of the matrix H using the QR algorithm.
@@ -55,24 +70,25 @@ def get_eigvals_qr(H: jax.Array, max_iterations=1000, tol=1e-6):
     q, r = jax.scipy.linalg.qr(H)
     A = jnp.dot(r, q)
     I = jnp.eye(n)
-    for _ in range(max_iterations):
-        if jnp.abs(A[-1, -2]) < tol:
-            n -= 1
-            eigvals[n] = A[-1, -1]
-            A = A[:-1, :-1]
-            I = jnp.eye(n)
+    shift = A[-1, -1]
+    for i in range(max_iterations):
+        carry = jax.lax.while_loop(is_qr_iteration_converged,
+                                   calculate_qr_iteration,
+                                   (A, tol, shift, I, i, False))
+        (A, _, _, _, i, _) = carry
+        n -= 1
+        eigvals[n] = A[-1, -1]
+        A = A[:-1, :-1]
+        I = jnp.eye(n)
+        shift = A[-1, -1]
         if n == 2:
             eigvals[:2] = eigs_2x2(A)
             break
-        shift = A[-1, -1]
-        q, r = jax.scipy.linalg.qr(A - shift * I)
-        A = jnp.dot(r, q) + shift * I
-    #print(f"It took {i} iterations to get max entry to {np.max(np.tril(A))}.")
     return eigvals
 
 
 
-
+@jax.jit
 def phi(theta: jax.Array, aa: float, bb: float, cc: float):
     return aa + 1j * bb * theta - cc * theta ** 2
 
@@ -83,10 +99,11 @@ def orig_quad_solve_shifted(H, e1, c, z):
     r = jax.scipy.linalg.solve(mat, e1)
     return c * r
 
+@partial(jax.jit, static_argnames=["N"])
 def orig_quad(N: int, H: jax.Array, ritz_values: jax.Array, subdiag: jax.Array, tol: float):
     m = H.shape[1]
 
-    aa = max(1, jnp.max(jnp.real(ritz_values)) + 1)
+    aa = jax.lax.clamp(1.0, jnp.max(jnp.real(ritz_values)) + 1, jnp.inf)
     bb = 1
     thetas = jnp.imag(ritz_values)
     ccs = jnp.abs((ritz_values - aa - 1j * thetas) / thetas ** 2)
@@ -178,7 +195,7 @@ def expm_quad(A: jax.Array, b: jax.Array, max_restarts: int, restart_length: int
                     h1 = orig_quad(N, H, active_nodes, subdiag, tol)
                 # Increase the number of quadrature points
                 # If quadrature did not converge, loop starts again here.
-                N2 = (jnp.sqrt(2) * N).astype(int) + 1
+                N2 = (np.sqrt(2) * N).astype(int) + 1
                 N2 += N2 % 2
                 h2 = orig_quad(N2, H, active_nodes, subdiag, tol)
                 # Check for convergence

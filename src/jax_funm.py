@@ -3,6 +3,7 @@ from functools import partial
 import jax
 import scipy
 from jax import numpy as jnp
+import numpy as np
 
 from jax_Arnoldi import extend_arnoldi, arnoldi_jittable
 
@@ -38,7 +39,7 @@ def funm_krylov(A, b: jax.Array, param):
 
 @partial(jax.jit, static_argnames=["m", ])
 def calculate_loop_p1(A, w, m, H_full, k):
-    (w, V, H) = arnoldi_jittable(A=A, w=w, m=m)
+    (w, V, H, breakdown) = arnoldi_jittable(A=A, w=w, m=m)
     #V_big = jnp.concat([V_big, new_V_big], axis=1)
     H_full = jax.lax.dynamic_update_slice(H_full, H, (k * m, k * m))
     return V, w, H_full
@@ -62,7 +63,7 @@ def calculate_loop(A: jax.Array, H_full: jax.Array, f: jax.Array, w: jax.Array, 
     return f, H_full, w
 
 
-def funm_krylov_jittable(A, b: jax.Array, param):
+def funm_krylov_jittable(A, b: jax.Array, param, tol=1e-5):
     cpu_device = jax.devices('cpu')[0]
     n = b.shape[0]
     beta = float(jnp.linalg.norm(b))
@@ -72,9 +73,19 @@ def funm_krylov_jittable(A, b: jax.Array, param):
     H_full = jnp.zeros((m * param["num_restarts"] + 1, m * param["num_restarts"]))
     fs = jnp.zeros((n, param["num_restarts"]))
     update_norms = []
+    updates = []
+    stopping_criterion = False
+    prev = f
     for k in range(param["num_restarts"]):
+        if stopping_criterion:
+            break
         f, H_full, w = calculate_loop(A, H_full, f, w, m, k, beta)
         fs = fs.at[:, k].set(f)
-        # update_norms.append(jnp.linalg.norm(beta * H_exp_jax))
+        updates.append(np.linalg.norm(f - prev))
+        prev = f
+        if k > 3 and updates[-1] < tol:
+            stopping_criterion = True
+            print("Updates getting too small")
+
 
     return fs  # , update_norms

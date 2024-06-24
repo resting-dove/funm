@@ -125,6 +125,56 @@ def orig_quad(N: int, H: jax.Array, ritz_values: jax.Array, subdiag: jax.Array, 
     return h1
 
 
+def adaptive_from_paper(N:int, H: jax.Array, f: jax.Array, active_nodes: jax.Array, subdiag: jax.Array, tol: float,
+                        beta: jax.Array):
+    """Adaptive quadrature of exp(H)e_1 as described in the paper [?]."""
+    converged = False
+    h1 = jnp.array([])
+    while not converged:
+        if len(h1) == 0:
+            if N > 2:
+                N = int(N / jnp.sqrt(2))
+            N -= N % 2
+            h1 = orig_quad(N, H, active_nodes, subdiag, tol)
+        # Increase the number of quadrature points
+        # If quadrature did not converge, loop starts again here.
+        N2 = (np.sqrt(2) * N).astype(int) + 1
+        N2 += N2 % 2
+        h2 = orig_quad(N2, H, active_nodes, subdiag, tol)
+        # Check for convergence
+        if jnp.linalg.norm(beta * (h2 - h1)) / jnp.linalg.norm(f) < tol:
+            converged = True  # print(f"{N} quadrature points were enough.")
+        else:
+            # print(f"{N} quadrature points were not enough. Trying {N2}.")
+            h1 = h2
+            N = N2
+    return h2
+
+import quadax
+def adaptive_using_quadax(H: jax.Array, ritz_values: jax.Array, tol: float):
+    m = H.shape[1]
+
+    aa = jax.lax.clamp(1.0, jnp.max(jnp.real(ritz_values)) + 1, jnp.inf)
+    bb = 1
+    thetas = jnp.imag(ritz_values)
+    ccs = jnp.abs((ritz_values - aa - 1j * thetas) / thetas ** 2)
+    cc = jax.lax.clamp(0.25, jnp.nanmin(jnp.min(ccs) / 5, initial=0.25), jnp.inf)
+
+    e1 = jnp.eye(m, 1)
+    I = jnp.eye(m)
+    fun = lambda t: jnp.real(1 / (2j * np.pi) * jnp.exp(phi(t, aa, bb, cc)) * (1j * bb - 2 * cc * t) * jax.scipy.linalg.solve((t * I - H), e1))
+
+    epsabs = epsrel = 1e-5 # by default jax uses 32 bit, higher accuracy requires going to 64 bit
+    a, b = -1 * jnp.inf, jnp.inf
+    y, info = quadax.quadgk(fun, [a, b], epsabs=epsabs, epsrel=epsrel)
+    return y
+
+def integrate(N:int, H: jax.Array, f: jax.Array, active_nodes: jax.Array, subdiag: jax.Array, tol: float,
+              beta: jax.Array):
+    h = adaptive_from_paper(N, H, f, active_nodes, subdiag, tol, beta)
+    #h = adaptive_using_quadax(H, active_nodes, tol)
+    return h
+
 def expm_quad(A: jax.Array, b: jax.Array, max_restarts: int, restart_length: int, arnoldi_trunc=jnp.inf,
               tol=1e-8, stopping_acc=1e-8, keep_H=False, keep_V=False, keep_f=False):
     """
@@ -183,29 +233,10 @@ def expm_quad(A: jax.Array, b: jax.Array, max_restarts: int, restart_length: int
             active_nodes = jnp.concatenate((active_nodes, interpol_nodes[kk]))
 
         if k == 0:
-            h2 = jax.scipy.linalg.expm(H)
+            h1 = jax.scipy.linalg.expm(H)
         else:
-            converged = False
-            h1 = jnp.array([])
-            while not converged:
-                if len(h1) == 0:
-                    if N > 2:
-                        N = int(N / jnp.sqrt(2))
-                    N -= N % 2
-                    h1 = orig_quad(N, H, active_nodes, subdiag, tol)
-                # Increase the number of quadrature points
-                # If quadrature did not converge, loop starts again here.
-                N2 = (np.sqrt(2) * N).astype(int) + 1
-                N2 += N2 % 2
-                h2 = orig_quad(N2, H, active_nodes, subdiag, tol)
-                # Check for convergence
-                if jnp.linalg.norm(beta * (h2 - h1)) / jnp.linalg.norm(f) < tol:
-                    converged = True  # print(f"{N} quadrature points were enough.")
-                else:
-                    # print(f"{N} quadrature points were not enough. Trying {N2}.")
-                    h1 = h2
-                    N = N2
-        h_big = beta * h2[:m, 0]
+            h1 = integrate(N, H, f, active_nodes, subdiag, tol, beta)
+        h_big = beta * h1[:m, 0]
         f = V @ h_big + f
         update = beta * jnp.linalg.norm(h_big)
 

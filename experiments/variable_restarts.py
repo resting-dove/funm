@@ -1,6 +1,5 @@
 import scipy
-from src.np_funm import variable_expm as funm_krylov
-from src.np_funm import funm_krylov as np_funm_krylov
+from src.np_funm import funm_krylov_v2, gershgorin_adaptive_expm, power_adaptive_expm
 import numpy as np
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
@@ -23,46 +22,49 @@ def orthogonalize(M: np.array, n: int, trunc=np.inf, reo=1):
 
 if __name__ == "__main__":
     # Set up a diagonal matrix
-    n = 120
-    n_half_imag = 4
+    # Set up a diagonal matrix
+    n = 100
     EWs = -np.arange(1, n + 1) / n
-    EWs[-2:] = [-2000, -150]
-    EWs[0] = -200
-    imag_sizes = np.arange(1, n_half_imag + 1)
-    imag_blocks = [np.array([[EWs[i], -imag_sizes[i]], [imag_sizes[i], EWs[i]]]) for i in range(n_half_imag)]
-    M = scipy.linalg.block_diag(*(imag_blocks + [ev for ev in EWs[2 * n_half_imag:]]))
-    EWs = EWs.astype(np.complex64)
-    EWs[:n_half_imag] += 1j * imag_sizes
-    EWs[n_half_imag: 2 * n_half_imag] = EWs[:n_half_imag] - 2j * imag_sizes
-
-
+    EWs[0:4] = [-2000, -21, -20.99, 0]
     rng = np.random.default_rng(44)
     S = rng.random((n, n))
     S = orthogonalize(S, n, reo=3)
     print(f"Orthogonality of S: {jnp.linalg.norm(S.transpose() @ S - jnp.eye(n, n))}")
 
-    A = S.transpose() @ M @ S
+    A = S.transpose() @ np.diag(EWs) @ S
     b = np.ones(n) / np.linalg.norm(np.ones(n))
 
 
-    exact, _, _ = np_funm_krylov(A, b, {"restart_length": n, "num_restarts": 1})
+    exact, _, _ = funm_krylov_v2(A, b, {"restart_length": n, "num_restarts": 1})
 
-    npfs, npeigvals, npupdate_norms, ms = funm_krylov(A, b)
-    npnorms = list(np.linalg.norm(exact - npfs, axis=0))
-    plt.plot(np.cumsum(ms), npnorms)
-    #plt.scatter(np.arange(1, param["num_restarts"] + 1), npupdate_norms, label=f"m:{restart_length}")
-    plt.title("Error of variable length restarted expm for matrix with imaginary EV")
+    f, _, _, m = gershgorin_adaptive_expm(A, b, stopping_acc=1e-10)
+    npnorms = [np.linalg.norm(exact)] + list(np.linalg.norm(exact - f, axis=0))
+    if isinstance(m, list):
+        m = [0] + m
+    else:
+        m = [0, m]
+    plt.plot(np.cumsum(m), npnorms, label=f"Gershgorin with m={m[-1]}")
+
+    f, _, _, m = power_adaptive_expm(A, b, stopping_acc=1e-10)
+    npnorms = [np.linalg.norm(exact)] + list(np.linalg.norm(exact - f, axis=0))
+    if isinstance(m, list):
+        m = [0] + m
+    else:
+        m = [0, m]
+    plt.plot(np.cumsum(m), npnorms, label=f"Gershgorin with m={m[-1]}")
+
+    plt.title("Error of adaptive size Krylov method expm for symmetric matrix")
     plt.legend(framealpha=.5)
     plt.yscale("log")
-    plt.ylim(bottom=max(np.finfo(npfs.dtype).eps, plt.ylim()[0]) / 10)
+    plt.ylim(bottom=max(np.finfo(f.dtype).eps, plt.ylim()[0]) / 10)
     plt.xlabel("Arnoldi iterations")
     plt.show()
 
     plt.title("Ritz values of restarted expm for matrix with imaginary EV")
     plt.scatter(np.real(EWs), np.imag(EWs), marker="o")
     # plt.scatter(np.real(sceigvals), np.imag(sceigvals), marker="x", label="scipy", s=10)
-    for k in [0, ms[-1]]:
-        plt.scatter(np.real(npeigvals[k]), np.imag(npeigvals[k]), marker="x", label=k, s=20 - k)
+    # for k in [0, ms[-1]]:
+    #     plt.scatter(np.real(npeigvals[k]), np.imag(npeigvals[k]), marker="x", label=k, s=20 - k)
 
     plt.legend()
     plt.ylabel("Imaginary")

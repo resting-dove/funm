@@ -1,10 +1,8 @@
-from jax_funm import funm_krylov as jax_funm_krylov
-from jax_funm import funm_krylov_jittable
-from np_funm import funm_krylov as np_funm_krylov
+from src_jax.jax_funm import funm_krylov_jittable
+from src.matfuncb.np_funm import funm_krylov as np_funm_krylov
 from scipy_expm import expm
 import numpy as np
 import jax.numpy as jnp
-from jax import random
 import matplotlib.pyplot as plt
 import time
 import scipy
@@ -21,7 +19,7 @@ if __name__ == "__main__":
     b = np.ones(n) / np.linalg.norm(np.ones(n))
 
 
-    #exact, _, _ = np_funm_krylov(A, b, {"restart_length": n, "num_restarts": 1})
+    exact, _, _ = np_funm_krylov(A, b, {"restart_length": n, "num_restarts": 1})
 
     param = {
         "restart_length": 15,

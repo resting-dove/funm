@@ -1,11 +1,10 @@
 
-from np_funm import funm_krylov_v2 as np_funm_krylov
-from jax_funm import funm_krylov as jax_funm_krylov
-from jax_funm import funm_krylov_jittable as jax_funm_krylov_jittable
-from jax.experimental.sparse import BCSR, BCOO
+from src.matfuncb.np_funm import funm_krylov_v2 as np_funm_krylov
+from src_jax.jax_funm import funm_krylov as jax_funm_krylov
+from src_jax.jax_funm import funm_krylov_jittable as jax_funm_krylov_jittable
+from jax.experimental.sparse import BCOO
 from jax import numpy as jnp
 import numpy as np
-import scipy
 import time
 from get_3d_laplacian import get_3d_laplacian
 

@@ -1,6 +1,6 @@
 
 import scipy
-from np_funm import funm_krylov_v2 as np_funm_krylov
+from src.matfuncb.np_funm import funm_krylov_v2 as np_funm_krylov
 import numpy as np
 import matplotlib.pyplot as plt
 import os

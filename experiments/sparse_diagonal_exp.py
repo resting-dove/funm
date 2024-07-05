@@ -1,13 +1,11 @@
-from jax_funm import funm_krylov_jittable as jax_funm_krylov_v2
-from jax_funm import funm_krylov as jax_funm_krylov
-from np_funm import funm_krylov as np_funm_krylov
-from np_funm import funm_krylov_v2 as np_funm_krylov_v2
+from src_jax.jax_funm import funm_krylov_jittable as jax_funm_krylov_v2
+from src.matfuncb.np_funm import funm_krylov as np_funm_krylov
+from src.matfuncb.np_funm import funm_krylov_v2 as np_funm_krylov_v2
 from scipy_expm import expm
 import numpy as np
 import jax.numpy as jnp
 import scipy
-from jax import random
-from jax.experimental.sparse import BCOO, BCSR
+from jax.experimental.sparse import BCOO
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":

@@ -1,11 +1,8 @@
 import scipy
 
-from jax_funm import funm_krylov as jax_funm_krylov
-from np_funm import funm_krylov as np_funm_krylov
-from scipy_expm import expm
+from src.matfuncb.np_funm import funm_krylov as np_funm_krylov
 import numpy as np
 import jax.numpy as jnp
-from numpy import random
 import matplotlib.pyplot as plt
 
 

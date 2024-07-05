@@ -1,7 +1,7 @@
 import numpy as np
-from src.Arnoldi import extend_arnoldi, arnoldi
-from src.gershgorin import gershgorin
-from src.power_method import power_method
+from src.matfuncb.krylov_basis import extend_arnoldi, arnoldi
+from src.matfuncb.gershgorin import get_length_gershgorin
+from src.matfuncb.power_method import get_length_power
 import scipy
 
 
@@ -19,7 +19,7 @@ def funm_krylov(A, b: np.array, param):
     for k in range(param["num_restarts"]):
         V_big[:, k * m] = w
 
-        (w, V_big, H, h, breakdown) = extend_arnoldi(A=A, V_big=V_big, s=k * m, m=(k + 1) * m)
+        (w, V_big, H, h, breakdown) = extend_arnoldi(A=A, V=V_big, s=k * m, m=(k + 1) * m)
         # (w, V_big, H, h, breakdown) = (
         #    jit(Arnoldi_2, static_argnames=["steps", "trunc", "reorth_num"])(A, V_big, H, s=k * m, steps=m, trunc=m))
         H_full[k * m: (k + 1) * m, k * m: (k + 1) * m] = H
@@ -34,7 +34,8 @@ def funm_krylov(A, b: np.array, param):
         update_norms.append(np.linalg.norm(beta * (V_big[:, k * m: (k + 1) * m] @ H_exp_jax)))
     return fs, eigvals, update_norms
 
-def funm_krylov_v2(A, b: np.array, param, calculate_eigvals=True, stopping_acc=1e-10):
+
+def funm_krylov_v2(A, b: np.array, param, matfunc= scipy.linalg.expm, calculate_eigvals=True, stopping_acc=1e-10):
     """Variation on the restarted Krylov implementation, influenced by the constraints that Jax puts on variable
     shapes."""
     stopping_criterion = False
@@ -55,7 +56,7 @@ def funm_krylov_v2(A, b: np.array, param, calculate_eigvals=True, stopping_acc=1
             print("breakdown")
             stopping_criterion = True
         H_full[k * m: (k + 1) * m + 1, k * m: (k + 1) * m] = H
-        H_exp = scipy.linalg.expm(H_full[: (k + 1) * m, : (k + 1) * m])
+        H_exp = matfunc(H_full[: (k + 1) * m, : (k + 1) * m])
         H_exp_jax = np.array(H_exp)[-m:, 0]
         f = beta * (V @ H_exp_jax) + f
         fs[:, k] = f
@@ -73,20 +74,42 @@ def funm_krylov_v2(A, b: np.array, param, calculate_eigvals=True, stopping_acc=1
     return fs, eigvals, update_norms
 
 
+def funm_krylov_v2_symmetric(A, b: np.array, matfunc= scipy.linalg.expm, restart_length: int = np.inf):
+    """The symmetric variant of the function above. Due to symmetry the matrix H will be tridiagonal, which might
+    simplify things considerably."""
+    n = b.shape[0]
+    beta = float(np.linalg.norm(b))
+    w = b / beta
+    m = restart_length
+    f = np.zeros((n, 1))
+    H_full = scipy.sparse.csc_array((m + 2, m), dtype=b.dtype)
+    fs = np.zeros((n, 1))
+    update_norms = []
+    for k in range(1):
+        (w, V, H, breakdown) = arnoldi(A=A, w=w, m=m, trunc=1)
+        H_full[k * m: (k + 1) * m + 1, k * m: (k + 1) * m] = H
+        H_exp = matfunc(H_full[: (k + 1) * m, : (k + 1) * m])
+        H_exp_col = H_exp[-m:, [0]]
+        f = beta * (V @ H_exp_col) + f
+        fs[:, k] = f[:, 0]
+        update = np.linalg.norm(beta * H_exp_col)
+        update_norms.append(update)
+
+    return fs, update_norms
+
+
+
+
 def gershgorin_adaptive_expm(A, b: np.array, calculate_eigvals=True, stopping_acc=1e-10):
     """Evaluation of exp(A)b using an adaptive krylov size.
     For now not restarted"""
     param = {"num_restarts": 1}
-    low, high = gershgorin(-A)
-    print("For now assume the spectrum of A is in [-high, 0].")
-    rho = high / 4
-    # Use the first error bound from the paper
-    m = int(np.sqrt(-np.log(stopping_acc / 10) * 5 * rho))
-    assert np.sqrt(4 * rho) <= m
-    assert m <= 2 * rho
+    m = get_length_gershgorin(A, stopping_acc)
+
     print(f"m is set to {m}.")
     param["restart_length"] = m
-    fs, eigvals, update_norms = funm_krylov_v2(A, b, param, calculate_eigvals, stopping_acc)
+    fs, eigvals, update_norms = funm_krylov_v2(A, b, param, calculate_eigvals=calculate_eigvals,
+                                               stopping_acc=stopping_acc)
     return fs, eigvals, update_norms, m
 
 
@@ -94,13 +117,7 @@ def power_adaptive_expm(A, b: np.array, calculate_eigvals=True, stopping_acc=1e-
     """Evaluation of exp(A)b using an adaptive krylov size derived from a few ppower iteration steps.
     For now not restarted"""
     param = {"num_restarts": 1}
-    high = power_method(-A, b, 3)
-    print("For now assume the spectrum of A is in [-high, 0].")
-    rho = high / 4
-    # Use the first error bound from the paper
-    m = int(np.sqrt(-np.log(stopping_acc / 10) * 5 * rho))
-    assert np.sqrt(4 * rho) <= m
-    assert m <= 2 * rho
+    m = get_length_power(A, b, stopping_acc)
     print(f"m is set to {m}.")
     param["restart_length"] = m
     fs, eigvals, update_norms = funm_krylov_v2(A, b, param, calculate_eigvals, stopping_acc)

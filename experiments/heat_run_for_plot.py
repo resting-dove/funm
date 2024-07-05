@@ -1,10 +1,8 @@
-import time
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 import os
-from get_3d_laplacian import get_3d_laplacian, get_smallest_evs
-from np_funm import funm_krylov, funm_krylov_v2
+from src.matfuncb.np_funm import funm_krylov
 
 root_path = os.getcwd()
 

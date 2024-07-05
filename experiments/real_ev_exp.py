@@ -1,9 +1,8 @@
-from jax_funm import funm_krylov as jax_funm_krylov
-from np_funm import funm_krylov as np_funm_krylov
+from src_jax.jax_funm import funm_krylov as jax_funm_krylov
+from src.matfuncb.np_funm import funm_krylov as np_funm_krylov
 from scipy_expm import expm
 import numpy as np
 import jax.numpy as jnp
-from numpy import random
 import matplotlib.pyplot as plt
 
 
@@ -41,7 +40,7 @@ if __name__ == "__main__":
     }
 
     # Calculate the matrix exponential
-    fs, eigvals, update_norms = jax_funm_krylov(jnp.array(A), jnp.array(b), param)
+    fs, update_norms = jax_funm_krylov(jnp.array(A), jnp.array(b), param)
     npfs, npeigvals, npupdate_norms = np_funm_krylov(A, b, param)
     scf, sceigvals = expm(A, b)
 
@@ -68,7 +67,7 @@ if __name__ == "__main__":
     plt.scatter(np.real(EWs), np.imag(EWs), marker="o")
     # plt.scatter(np.real(sceigvals), np.imag(sceigvals), marker="x", label="scipy", s=10)
     for k in [0, param["num_restarts"] - 1]:
-        plt.scatter(np.real(eigvals[k]), np.imag(eigvals[k]), marker="x", label=k, s=20 - k)
+        plt.scatter(np.real(npeigvals[k]), np.imag(npeigvals[k]), marker="x", label=k, s=20 - k)
 
     plt.legend()
     plt.ylabel("Imaginary")

@@ -2,9 +2,7 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from np_funm import funm_krylov, funm_krylov_v2
-from jax_funm import funm_krylov_jittable
-from jax import numpy as jnp
+from src.matfuncb.np_funm import funm_krylov, funm_krylov_v2
 import os
 
 root_path = os.getcwd()

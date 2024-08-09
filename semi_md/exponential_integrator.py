@@ -1,3 +1,5 @@
+import scipy.linalg
+
 from semi_md.computeK import compute_K
 from semi_md.matrix_functions import *
 from semi_md.molecular_system import MolecularSystem
@@ -87,27 +89,31 @@ class OneStepGautschi():
         p = self.md.get_positions()
         self.md.set_positions(r.reshape((-1, 3)))
         f = self.md.harmonic_angle_force()
-        ret = +f.reshape(-1) - Q @ self.K @ self.original_positions.reshape(-1)
+        ret = +f.reshape(-1) + Q @ self.K @ self.original_positions.reshape(-1)
         self.md.set_positions(p)
         return ret
+
+    def get_lambda(self, xi, RxLarge):
+        Lambda = self.M_sqrt_inv @ self.g_tilde(self.M_sqrt_inv @ xi, RxLarge)
+        return Lambda
 
     def check_energy_jump(self, p, v):
         ke, pe = self.md.kinetic_energy(), self.md.potential_energy()
         self.md.set_positions(p)
         self.md.set_velocities(v)
         nke, npe = self.md.kinetic_energy(), self.md.potential_energy()
-        if (nke - ke) / ke > 0.5:
-            print(f"Kinetic Energy jumped by a relative factor of {(nke - ke) / ke * 100}%.")
-        if (npe - pe) / pe > 0.5:
-            print(f"Potential Energy jumped by a relative factor of {(npe - pe) / pe * 100}%.")
+        if np.abs((nke - ke) / ke) > 0.5:
+            print(f"Kinetic Energy jumped by a relative factor of {(nke - ke) / ke * 100:.1f}%.")
+        if np.abs((npe - pe) / pe) > 0.5:
+            print(f"Potential Energy jumped by a relative factor of {(npe - pe) / pe * 100:.1f}%.")
 
     def x1_step(self, xi, vi, Omega2, RxLarge, k):
         x1 = matfuncb(self.time_step ** 2 * Omega2, xi, cos_sqrtm, k=k, symmetric=True)[0]
         if np.any(vi != 0):
-            x1 += matfuncb(Omega2, vi, partial(sinc_sqrtm_variation, t=self.time_step), k=k, symmetric=True)[0]
-        Lambda = self.M_sqrt_inv @ self.g_tilde(
-            self.M_sqrt_inv @ matfuncb(self.time_step ** 2 * Omega2, xi, sinc_sqrtm, k=k, symmetric=True)[0],
-            RxLarge)
+            # x1 += matfuncb(Omega2, vi, partial(sinc_sqrtm_variation3, t=self.time_step), k=k, symmetric=False)[0]
+            x1 += self.time_step * matfuncb(self.time_step ** 2 * Omega2, vi, sinc_sqrtm, k=k, symmetric=True)[0]
+        Lambda = self.get_lambda(matfuncb(self.time_step ** 2 * Omega2, xi, sinc_sqrtm, k=k, symmetric=True)[0],
+                                 RxLarge)
         x1 = x1 + 0.5 * self.time_step ** 2 * \
              matfuncb(self.time_step ** 2 * Omega2, Lambda, sinc2_sqrtm, k=k, symmetric=True)[0]
         return x1, Lambda
@@ -116,13 +122,12 @@ class OneStepGautschi():
         x2 = -matfuncb(Omega2, xi, partial(xsinm, t=self.time_step), k=k, symmetric=True)[0]
         if np.any(vi != 0):
             x2 += matfuncb(self.time_step ** 2 * Omega2, vi, cos_sqrtm, k=k, symmetric=True)[
-                0]  # TODO: Flip the sign here and don't do stickiness
-        Lambda2 = self.M_sqrt_inv @ self.g_tilde(
-            self.M_sqrt_inv @ matfuncb(self.time_step ** 2 * Omega2, x1, sinc_sqrtm, k=k, symmetric=True)[0],
-            RxLarge)
+                0]
+        Lambda2 = self.get_lambda(matfuncb(self.time_step ** 2 * Omega2, x1, sinc_sqrtm, k=k, symmetric=True)[0],
+                                  RxLarge)
         term = matfuncb(self.time_step ** 2 * Omega2, Lambda, cosm_sincm, k=k, symmetric=True)[0] + \
                matfuncb(self.time_step ** 2 * Omega2, Lambda2, sinc_sqrtm, k=k, symmetric=True)[0]
-        x2 = x2 - 0.5 * self.time_step * term  # TODO: Flip without real reason
+        x2 = x2 + 0.5 * self.time_step * term
         return x2
 
     def advance_step(self):
@@ -135,7 +140,6 @@ class OneStepGautschi():
         Omega2 = self.M_sqrt_inv @ RxLarge @ self.K @ Rx_invLarge @ self.M_sqrt_inv
 
         x1, Lambda = self.x1_step(xi, vi, Omega2, RxLarge, k)
-        vi = 0 * vi  # TODO: Infinite stickiness I guess
         x2 = self.x2_step(xi, vi, x1, Lambda, Omega2, RxLarge, k)
         p_next = (self.M_sqrt_inv @ x1).reshape((-1, 3))
         v_next = (self.M_sqrt_inv @ x2).reshape((-1, 3))

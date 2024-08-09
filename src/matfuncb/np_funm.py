@@ -17,13 +17,12 @@ def funm_krylov(A, b: np.array, param):
     eigvals = {}
     update_norms = []
     for k in range(param["num_restarts"]):
-        #V_big[:, k * m] = w
+        # V_big[:, k * m] = w
 
         (w, V_big, H, breakdown) = arnoldi(A=A, w=w, m=m)
         # (w, V_big, H, h, breakdown) = (
         #    jit(Arnoldi_2, static_argnames=["steps", "trunc", "reorth_num"])(A, V_big, H, s=k * m, steps=m, trunc=m))
         H_full[k * m: (k + 1) * m + 1, k * m: (k + 1) * m] = H
-
 
         H_exp = scipy.linalg.expm(H_full[: (k + 1) * m, : (k + 1) * m])
         H_exp_jax = np.array(H_exp)[-m:, 0]
@@ -34,7 +33,7 @@ def funm_krylov(A, b: np.array, param):
     return fs, eigvals, update_norms
 
 
-def funm_krylov_v2(A, b: np.array, param, matfunc= scipy.linalg.expm, calculate_eigvals=True, stopping_acc=1e-10):
+def funm_krylov_v2(A, b: np.array, param, matfunc=scipy.linalg.expm, calculate_eigvals=True, stopping_acc=1e-10):
     """Variation on the restarted Krylov implementation, influenced by the constraints that Jax puts on variable
     shapes."""
     stopping_criterion = False
@@ -105,6 +104,7 @@ def funm_krylov_v2_symmetric(A, b: np.array, matfunc=scipy.linalg.expm, restart_
     else:
         (w, V, H, breakdown) = arnoldi(A=A, w=w, m=m, trunc=1)
     if breakdown:
+        # print(f"breakdown in step {breakdown}.")
         m = breakdown
     H_full[k * m: (k + 1) * m + 1, k * m: (k + 1) * m] = H
     H_exp = matfunc(H_full[: (k + 1) * m, : (k + 1) * m])
@@ -117,8 +117,6 @@ def funm_krylov_v2_symmetric(A, b: np.array, matfunc=scipy.linalg.expm, restart_
     return fs, update_norms, (k + 1) * m
 
 
-
-
 def gershgorin_adaptive_expm(A, b: np.array, calculate_eigvals=True, stopping_acc=1e-10):
     """Evaluation of exp(A)b using an adaptive krylov size.
     For now not restarted"""
@@ -128,7 +126,7 @@ def gershgorin_adaptive_expm(A, b: np.array, calculate_eigvals=True, stopping_ac
     print(f"m is set to {m}.")
     param["restart_length"] = m
     fs, eigvals, update_norms, k = funm_krylov_v2(A, b, param, calculate_eigvals=calculate_eigvals,
-                                               stopping_acc=stopping_acc)
+                                                  stopping_acc=stopping_acc)
     return fs, eigvals, update_norms, k
 
 

@@ -20,7 +20,8 @@ def arnoldi_step(A: Union[np.array, scipy.sparse.sparray], V: np.array, H: np.ar
     return w, V, H
 
 
-def extend_arnoldi(A: Union[np.array, scipy.sparse.sparray], V: np.array, w:np.array,  H: np.array, s: int, m: int, trunc=-1):
+def extend_arnoldi(A: Union[np.array, scipy.sparse.sparray], V: np.array, w: np.array, H: np.array, s: int, m: int,
+                   trunc=-1):
     """Extend a given Arnoldi decomposition from size s to size m."""
     new_V_big = np.empty((w.shape[0], m))
     new_V_big[:, :s] = V
@@ -55,7 +56,8 @@ def arnoldi(A, w: np.array, m: int, trunc=np.inf):
     for k_small in np.arange(m):
         w, new_V_big, H = arnoldi_step(A, new_V_big, H, k_small, trunc)
         eta = H[k_small + 1, k_small]
-        if np.abs(eta) < k_small * np.finfo(eta.dtype).eps * np.linalg.norm(H[:, k_small]):
+        if np.abs(eta) < k_small * np.linalg.norm(
+                H[:, k_small]) * 1e-10:  # * np.finfo(eta.dtype).eps:  # we missed some breakdowns before
             breakdown = k_small + 1
             m = breakdown
         if k_small < m - 1:

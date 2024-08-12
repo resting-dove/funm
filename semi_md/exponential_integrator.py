@@ -11,13 +11,16 @@ from src.matfuncb.matfuncb import matfuncb
 
 
 class BaseSemiExponentialIntegrator():
-    def __init__(self, md: MolecularSystem, original_positions: np.ndarray, time_step: float):
+    def __init__(self, md: MolecularSystem, original_positions: np.ndarray, time_step: float, recenter=False):
         self.md = md
         self.original_positions = original_positions
         self.time_step = time_step
+        self.recenter = recenter
         self.setup()
 
     def setup(self):
+        if self.recenter:
+            self.original_positions = self.recenter_positions(self.original_positions)
         self.M_sqrt = np.kron(np.diag(np.sqrt(self.md.get_masses().flatten())),
                               np.eye(3))
         self.M_sqrt_inv = np.kron(
@@ -45,6 +48,18 @@ class BaseSemiExponentialIntegrator():
         """
         Lambda = self.M_sqrt_inv @ self.g_tilde(self.M_sqrt_inv @ xi, RxLarge)
         return Lambda
+
+    def recenter_positions(self, p: np.array):
+        m =  self.md.get_masses()[:, None]
+        center_positions = np.sum(p * m, axis=0) / np.sum(m)
+        p = p - center_positions
+        return p
+
+    def remove_center_of_mass_movement(self):
+        m =  self.md.get_masses()[:, None]
+        v = self.md.get_velocities()
+        center_v = np.sum(v * m, axis=0) / np.sum(m)
+        self.md.set_velocities(self.md.get_velocities() - center_v)
 
     def advance_step(self):
         raise NotImplementedError
@@ -108,8 +123,8 @@ class ExplicitGautschi():
 
 
 class OneStepGautschi(BaseSemiExponentialIntegrator):
-    def __init__(self, md: MolecularSystem, original_positions: np.ndarray, time_step: float):
-        super().__init__(md, original_positions, time_step)
+    def __init__(self, md: MolecularSystem, original_positions: np.ndarray, time_step: float, recenter=False):
+        super().__init__(md, original_positions, time_step, recenter)
 
     def check_energy_jump(self, p, v):
         ke, pe = self.md.kinetic_energy(), self.md.potential_energy()
@@ -157,13 +172,15 @@ class OneStepGautschi(BaseSemiExponentialIntegrator):
         v_next = (self.M_sqrt_inv @ x2).reshape((-1, 3))
         self.check_energy_jump(p_next, v_next)
         self.prev_v = v  # For debug purposes
-
+        if self.recenter:
+            self.md.set_positions(self.recenter_positions(p_next))
+            self.remove_center_of_mass_movement()
         return p_next
 
 
 class ScipyExponential(BaseSemiExponentialIntegrator):
-    def __init__(self, md: MolecularSystem, original_positions: np.ndarray, time_step: float):
-        super().__init__(md, original_positions, time_step)
+    def __init__(self, md: MolecularSystem, original_positions: np.ndarray, time_step: float, recenter=False):
+        super().__init__(md, original_positions, time_step, recenter)
 
     def advance_step(self):
         k = self.K.shape[0]
@@ -187,4 +204,7 @@ class ScipyExponential(BaseSemiExponentialIntegrator):
         v_next = (self.M_sqrt_inv @ result.y[n:, -1]).reshape((-1, 3))
         self.md.set_positions(p_next)
         self.md.set_velocities(v_next)
+        if self.recenter:
+            self.md.set_positions(self.recenter_positions(p_next))
+            self.remove_center_of_mass_movement()
         return p_next

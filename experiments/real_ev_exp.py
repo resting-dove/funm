@@ -1,9 +1,10 @@
-from src_jax.jax_funm import funm_krylov as jax_funm_krylov
-from src.matfuncb.np_funm import funm_krylov as np_funm_krylov
-from scipy_expm import expm
-import numpy as np
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+import numpy as np
+
+from scipy_expm import expm
+from src.matfuncb.np_funm import funm_krylov_v2
+from src_jax.jax_funm import funm_krylov as jax_funm_krylov
 
 
 def orthogonalize(M: np.array, n: int, trunc=np.inf, reo=1):
@@ -35,13 +36,13 @@ if __name__ == "__main__":
     b = np.ones(n) / np.linalg.norm(np.ones(n))
 
     param = {
-        "restart_length": 5,
-        "num_restarts": 20
+        "restart_length": 25,
+        "num_restarts": 1
     }
 
     # Calculate the matrix exponential
     fs, update_norms = jax_funm_krylov(jnp.array(A), jnp.array(b), param)
-    npfs, npeigvals, npupdate_norms = np_funm_krylov(A, b, param)
+    npfs, npeigvals, npupdate_norms, np_iterations = funm_krylov_v2(A, b, param)
     scf, sceigvals = expm(A, b)
 
     exact = S.transpose() @ np.diag(np.exp(EWs)) @ S @ b
@@ -55,7 +56,7 @@ if __name__ == "__main__":
     plt.plot(np.arange(param["num_restarts"] + 1), norms, label="jax")
     plt.plot(np.arange(param["num_restarts"] + 1), npnorms, label="numpy")
     plt.scatter(np.arange(1, param["num_restarts"] + 1), update_norms, label="jax update norms")
-    plt.scatter(np.arange(1, param["num_restarts"] + 1), npupdate_norms, label="numpy update norms")
+    # plt.scatter(np.arange(1, np_iterations), npupdate_norms, label="numpy update norms")
     plt.title("Error of restarted expm for real EV matrix")
     plt.legend(framealpha=.5)
     plt.yscale("log")

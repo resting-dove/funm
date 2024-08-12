@@ -67,8 +67,8 @@ class MolecularSystem():
                                          positions[p2, :],
                                          length,
                                          k)
-            forces[p1, :] += -force
-            forces[p2, :] += force
+            forces[p1, :] += force
+            forces[p2, :] += -force
         return forces
 
     def harmonic_bond_engergy(self):
@@ -114,7 +114,7 @@ class MolecularSystem():
                                           positions[p3, :],
                                           theta0,
                                           k)
-            forces[[p1, p2, p3], :] -= force
+            forces[[p1, p2, p3], :] += force
         return forces
 
     def get_forces(self):

@@ -15,7 +15,7 @@ def harmonic_bond_force_(x: np.array, y: np.array, r_0: float, k: float) -> np.a
     This should just be the derivative of harmonic_bond_potential_.
     """
     r = np.linalg.norm(x - y)
-    return k * (r - r_0) * (x - y) / r
+    return - k * (r - r_0) * (x - y) / r
 
 
 def get_angle(a: np.array, b: np.array, c: np.array):
@@ -46,9 +46,9 @@ def harmonic_angle_force_(a: np.array, b: np.array, c: np.array,
     cross_norm = max(scipy.linalg.norm(cross), 1e-6)
     # Compute the force
     dEdAngle = k * (theta - theta_0)
-    force1 = np.cross(v1, cross) * dEdAngle / (scipy.linalg.norm(
+    force1 = -np.cross(v1, cross) * dEdAngle / (scipy.linalg.norm(
         v1) ** 2 * cross_norm)  # https://minesparis-psl.hal.science/hal-00924263/document for derivation
-    force2 = np.cross(cross, v2) * dEdAngle / (scipy.linalg.norm(
+    force2 = -np.cross(cross, v2) * dEdAngle / (scipy.linalg.norm(
         v2) ** 2 * cross_norm)  # Bernard Monasse, Frédéric Boussinot. Determination of Forces from a Potential in Molecular Dynamics. 2014. ￿hal-00924263￿
     force3 = -force1 - force2
     return np.array([force1, force2, force3])

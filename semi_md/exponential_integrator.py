@@ -10,6 +10,46 @@ from semi_md.rotations import get_Rx
 from src.matfuncb.matfuncb import matfuncb
 
 
+class BaseSemiExponentialIntegrator():
+    def __init__(self, md: MolecularSystem, original_positions: np.ndarray, time_step: float):
+        self.md = md
+        self.original_positions = original_positions
+        self.time_step = time_step
+        self.setup()
+
+    def setup(self):
+        self.M_sqrt = np.kron(np.diag(np.sqrt(self.md.get_masses().flatten())),
+                              np.eye(3))
+        self.M_sqrt_inv = np.kron(
+            np.diag(1 / np.sqrt(self.md.get_masses().flatten())), np.eye(3))
+
+        self.K = compute_K(self.original_positions,
+                           self.md.forcefield.get_parameter_handler("Bonds").find_matches(self.md.openff_topology),
+                           self.md.openff_topology,
+                           self.md.units)
+
+    def g_tilde(self, r: np.array, Q: np.array):
+        """
+        gtilde(R) = G(R) - Q K R_0 = -F(R) - Q K R_0
+        """
+        p = self.md.get_positions()
+        self.md.set_positions(r.reshape((-1, 3)))
+        f = self.md.harmonic_angle_force()
+        ret = -f.reshape(-1) + Q @ self.K @ self.original_positions.reshape(-1)
+        self.md.set_positions(p)
+        return ret
+
+    def get_lambda(self, xi, RxLarge):
+        """
+        Lambda(xi) = M^(-1/2) gtilde(M^(-1/2) xi)
+        """
+        Lambda = self.M_sqrt_inv @ self.g_tilde(self.M_sqrt_inv @ xi, RxLarge)
+        return Lambda
+
+    def advance_step(self):
+        raise NotImplementedError
+
+
 class ExplicitGautschi():
     def __init__(self, md: MolecularSystem, original_positions: np.ndarray, time_step: float):
         self.md = md
@@ -67,35 +107,9 @@ class ExplicitGautschi():
         return p
 
 
-class OneStepGautschi():
+class OneStepGautschi(BaseSemiExponentialIntegrator):
     def __init__(self, md: MolecularSystem, original_positions: np.ndarray, time_step: float):
-        self.md = md
-        self.original_positions = original_positions
-        self.time_step = time_step
-        self.setup()
-
-    def setup(self):
-        self.M_sqrt = np.kron(np.diag(np.sqrt(self.md.get_masses().flatten())),
-                              np.eye(3))
-        self.M_sqrt_inv = np.kron(
-            np.diag(1 / np.sqrt(self.md.get_masses().flatten())), np.eye(3))
-
-        self.K = compute_K(self.original_positions,
-                           self.md.forcefield.get_parameter_handler("Bonds").find_matches(self.md.openff_topology),
-                           self.md.openff_topology,
-                           self.md.units)
-
-    def g_tilde(self, r: np.array, Q: np.array):
-        p = self.md.get_positions()
-        self.md.set_positions(r.reshape((-1, 3)))
-        f = self.md.harmonic_angle_force()
-        ret = +f.reshape(-1) + Q @ self.K @ self.original_positions.reshape(-1)
-        self.md.set_positions(p)
-        return ret
-
-    def get_lambda(self, xi, RxLarge):
-        Lambda = self.M_sqrt_inv @ self.g_tilde(self.M_sqrt_inv @ xi, RxLarge)
-        return Lambda
+        super().__init__(md, original_positions, time_step)
 
     def check_energy_jump(self, p, v):
         ke, pe = self.md.kinetic_energy(), self.md.potential_energy()
@@ -110,7 +124,6 @@ class OneStepGautschi():
     def x1_step(self, xi, vi, Omega2, RxLarge, k):
         x1 = matfuncb(self.time_step ** 2 * Omega2, xi, cos_sqrtm, k=k, symmetric=True)[0]
         if np.any(vi != 0):
-            # x1 += matfuncb(Omega2, vi, partial(sinc_sqrtm_variation3, t=self.time_step), k=k, symmetric=False)[0]
             x1 += self.time_step * matfuncb(self.time_step ** 2 * Omega2, vi, sinc_sqrtm, k=k, symmetric=True)[0]
         Lambda = self.get_lambda(matfuncb(self.time_step ** 2 * Omega2, xi, sinc_sqrtm, k=k, symmetric=True)[0],
                                  RxLarge)
@@ -121,8 +134,7 @@ class OneStepGautschi():
     def x2_step(self, xi, vi, x1, Lambda, Omega2, RxLarge, k):
         x2 = -matfuncb(Omega2, xi, partial(xsinm, t=self.time_step), k=k, symmetric=True)[0]
         if np.any(vi != 0):
-            x2 += matfuncb(self.time_step ** 2 * Omega2, vi, cos_sqrtm, k=k, symmetric=True)[
-                0]
+            x2 += matfuncb(self.time_step ** 2 * Omega2, vi, cos_sqrtm, k=k, symmetric=True)[0]
         Lambda2 = self.get_lambda(matfuncb(self.time_step ** 2 * Omega2, x1, sinc_sqrtm, k=k, symmetric=True)[0],
                                   RxLarge)
         term = matfuncb(self.time_step ** 2 * Omega2, Lambda, cosm_sincm, k=k, symmetric=True)[0] + \
@@ -149,35 +161,9 @@ class OneStepGautschi():
         return p_next
 
 
-class ScipyExponential():
+class ScipyExponential(BaseSemiExponentialIntegrator):
     def __init__(self, md: MolecularSystem, original_positions: np.ndarray, time_step: float):
-        self.md = md
-        self.original_positions = original_positions
-        self.time_step = time_step
-        self.setup()
-
-    def setup(self):
-        self.M_sqrt = np.kron(np.diag(np.sqrt(self.md.get_masses().flatten())),
-                              np.eye(3))
-        self.M_sqrt_inv = np.kron(
-            np.diag(1 / np.sqrt(self.md.get_masses().flatten())), np.eye(3))
-
-        self.K = compute_K(self.original_positions,
-                           self.md.forcefield.get_parameter_handler("Bonds").find_matches(self.md.openff_topology),
-                           self.md.openff_topology,
-                           self.md.units)
-
-    def g_tilde(self, r: np.array, Q: np.array):
-        p = self.md.get_positions()
-        self.md.set_positions(r.reshape((-1, 3)))
-        f = self.md.harmonic_angle_force()
-        ret = +f.reshape(-1) + Q @ self.K @ self.original_positions.reshape(-1)
-        self.md.set_positions(p)
-        return ret
-
-    def get_lambda(self, xi, RxLarge):
-        Lambda = self.M_sqrt_inv @ self.g_tilde(self.M_sqrt_inv @ xi, RxLarge)
-        return Lambda
+        super().__init__(md, original_positions, time_step)
 
     def advance_step(self):
         k = self.K.shape[0]
@@ -192,7 +178,8 @@ class ScipyExponential():
         n = len(xi)
 
         def deriv(t, y):
-            return np.concatenate((y[n:], -Omega2 @ y[:n] + self.get_lambda(y[:n], RxLarge)))
+            xi, vi = y[:n], y[n:]
+            return np.concatenate((vi, -Omega2 @ xi + self.get_lambda(xi, RxLarge)))
 
         t_end = self.time_step
         result = scipy.integrate.solve_ivp(deriv, [0, t_end], X)

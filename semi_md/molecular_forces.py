@@ -26,7 +26,7 @@ def get_angle(a: np.array, b: np.array, c: np.array):
     v1_norm2 = scipy.linalg.norm(v1) ** 2
     v2_norm2 = scipy.linalg.norm(v2) ** 2
     dot = np.dot(v1, v2)
-    cosine = min(max(dot * np.sqrt(v1_norm2 * v2_norm2), -1), 1)
+    cosine = min(max(dot / np.sqrt(v1_norm2 * v2_norm2), -1), 1)
     theta = np.arccos(cosine)
     return theta, v1, v2, cross
 
@@ -46,7 +46,9 @@ def harmonic_angle_force_(a: np.array, b: np.array, c: np.array,
     cross_norm = max(scipy.linalg.norm(cross), 1e-6)
     # Compute the force
     dEdAngle = k * (theta - theta_0)
-    force1 = np.cross(v1, cross) * dEdAngle / (scipy.linalg.norm(v1) ** 2 * cross_norm)
-    force2 = np.cross(cross, v2) * dEdAngle / (scipy.linalg.norm(v2) ** 2 * cross_norm)
+    force1 = np.cross(v1, cross) * dEdAngle / (scipy.linalg.norm(
+        v1) ** 2 * cross_norm)  # https://minesparis-psl.hal.science/hal-00924263/document for derivation
+    force2 = np.cross(cross, v2) * dEdAngle / (scipy.linalg.norm(
+        v2) ** 2 * cross_norm)  # Bernard Monasse, Frédéric Boussinot. Determination of Forces from a Potential in Molecular Dynamics. 2014. ￿hal-00924263￿
     force3 = -force1 - force2
     return np.array([force1, force2, force3])

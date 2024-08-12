@@ -38,7 +38,8 @@ class BaseSemiExponentialIntegrator():
         p = self.md.get_positions()
         self.md.set_positions(r.reshape((-1, 3)))
         f = self.md.harmonic_angle_force()
-        ret = -f.reshape(-1) + Q @ self.K @ self.original_positions.reshape(-1)
+        ret = f.reshape(-1) + Q @ self.K @ self.original_positions.reshape(
+            -1)  # TODO: Figure out why signs here need to be flipped to + currently
         self.md.set_positions(p)
         return ret
 
@@ -50,13 +51,13 @@ class BaseSemiExponentialIntegrator():
         return Lambda
 
     def recenter_positions(self, p: np.array):
-        m =  self.md.get_masses()[:, None]
+        m = self.md.get_masses()[:, None]
         center_positions = np.sum(p * m, axis=0) / np.sum(m)
         p = p - center_positions
         return p
 
     def remove_center_of_mass_movement(self):
-        m =  self.md.get_masses()[:, None]
+        m = self.md.get_masses()[:, None]
         v = self.md.get_velocities()
         center_v = np.sum(v * m, axis=0) / np.sum(m)
         self.md.set_velocities(self.md.get_velocities() - center_v)

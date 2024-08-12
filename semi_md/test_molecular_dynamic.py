@@ -5,10 +5,11 @@ from openff.toolkit import Molecule, ForceField, Topology
 from openmm import VerletIntegrator
 from openmm.app import Simulation
 from openmm.unit import md_unit_system, Quantity
+import copy
 
 from animation import animate_md
 from molecular_system import MolecularSystem
-from semi_md.exponential_integrator import OneStepGautschi
+from semi_md.exponential_integrator import OneStepGautschi, ScipyExponential
 from utility import get_rest_positions
 from verlet_integrator import MyVerletIntegrator
 
@@ -17,10 +18,11 @@ if __name__ == "__main__":
     smiles_explicit_h = Molecule.from_smiles(
         # "[H][C]([H])([H])[C@@]([H])([C](=[O])[O-])[N+]([H])([H])[H]",
         # "N1N=NN=N1",
-        "[H]O[H]",
+        "C",
+        #"[H]O[H]",
         # "O=C=O",
         # "N#N",
-        hydrogens_are_explicit=True,
+        hydrogens_are_explicit=False,
     )
     smiles_explicit_h.generate_conformers(n_conformers=1)
 
@@ -40,68 +42,92 @@ if __name__ == "__main__":
     # Get rest positions
     original_positions, original_positions_numpy = get_rest_positions(openff_topology, system, positions,
                                                                       print_energies=False)
+
     simulation.context.setPositions(original_positions)
     print(f"pot.E: {simulation.context.getState(getEnergy=True).getPotentialEnergy()}")
 
     # Insert into my class
     r = np.empty((200, *original_positions_numpy.shape))
     md = MolecularSystem(simulation, openff_forcefield, openff_topology, md_unit_system)
+    md.set_velocities(md.get_velocities() * 0)
     assert np.all(md.get_positions() == original_positions.value_in_unit_system(md.units))
     verlet = MyVerletIntegrator(time_step.value_in_unit_system(md.units))
+    #verlet.recenter_positions(md)
     r[0] = md.get_positions()
     print(f"0: kinetic energy: {md.kinetic_energy()}, potential energy: {md.potential_energy()}")
     for i in range(1, len(r)):
         p = verlet.advance_step(md)
         r[i] = p
-        print(
-            f"{i}: kinetic energy: {md.kinetic_energy()}, "
-            f"potential energy: {md.potential_energy()},"
-            f"\t total energy: {md.total_energy()}")
-        if i == 50:
-            1 + 1
+        if i % 1 == 0:
+            print(
+                f"{i}: kin. energy: {md.kinetic_energy()}, "
+                f"pot. energy: {md.potential_energy():.2f} "
+                f"({md.harmonic_bond_engergy():.1f}, {md.harmonic_angle_energy():.1f}),"
+                f"\t total energy: {md.total_energy()}")
 
     ani = animate_md(r, topology=openff_topology, step=1, return_as="")
     ani.save(filename="complicated_example.html", writer="html")
 
-    # # Comparison with exponential integrator
-    # r = np.empty((len(r), openff_topology.n_atoms, 3))
-    # md = MolecularSystem(simulation, openff_forcefield, openff_topology, md_unit_system)
-    # md.set_positions(original_positions_numpy.value_in_unit_system(md.units))
-    # gautschi = ExplicitGautschi(md,
-    #                             original_positions_numpy.value_in_unit_system(md.units),
-    #                             time_step.value_in_unit_system(md.units))
-    # r[0] = md.get_positions()
-    # print(f"Gautschi: 0: kinetic energy: {md.kinetic_energy()}, potential energy: {md.potential_energy()}")
-    #
-    # for i in range(len(r)):
-    #     p = gautschi.advance_step()
-    #     r[i] = p
-    #     if i % 1 == 0:
-    #         print(
-    #             f"Gautschi: {i}: kinetic energy: {gautschi.md.kinetic_energy()},"
-    #             f" potential energy: {gautschi.md.potential_energy()},"
-    #             f"\t total energy: {gautschi.md.total_energy()}")
-    # ani = animate_md(r, topology=openff_topology, step=1, return_as="")
-    # ani.save(filename="html_gautschi.html", writer="html")
-
-    # Comparison with one step exponential integrator
-    r = np.empty((len(r), openff_topology.n_atoms, 3))
+    # Comparison with scipy exponential integrator
+    rscex = np.empty((len(r), openff_topology.n_atoms, 3))
     md = MolecularSystem(simulation, openff_forcefield, openff_topology, md_unit_system)
     md.set_positions(original_positions_numpy.value_in_unit_system(md.units))
+    md.set_velocities(md.get_velocities() * 0)
+    scex = ScipyExponential(md,
+                            original_positions_numpy.value_in_unit_system(md.units),
+                            time_step.value_in_unit_system(md.units),
+                            recenter=False)
+    assert np.all(scex.md.get_positions() == original_positions.value_in_unit_system(scex.md.units))
+    #scex.md.set_positions(scex.recenter_positions(scex.md.get_positions()))
+    rscex[0] = md.get_positions()
+    print(f"SciExp: 0: kinetic energy: {md.kinetic_energy()}, potential energy: {md.potential_energy()}")
+
+    for i in range(1, len(r)):
+        p = scex.advance_step()
+        rscex[i] = p
+        if i % 1 == 0:
+            print(
+                f"ScipExp: {i}: kin. energy: {scex.md.kinetic_energy()}, "
+                f"pot. energy: {scex.md.potential_energy():.2f} "
+                f"({scex.md.harmonic_bond_engergy():.1f}, {scex.md.harmonic_angle_energy():.1f}),"
+                f"\t total energy: {scex.md.total_energy()}")
+    ani = animate_md(rscex, topology=openff_topology, step=1, return_as="")
+    ani.save(filename="complicated_scipexp.html", writer="html")
+
+    # Comparison with one step exponential integrator
+    rgau = np.empty((len(r), openff_topology.n_atoms, 3))
+    md = MolecularSystem(simulation, openff_forcefield, openff_topology, md_unit_system)
+    md.set_positions(original_positions_numpy.value_in_unit_system(md.units))
+    md.set_velocities(md.get_velocities() * 0)
     gautschi = OneStepGautschi(md,
                                original_positions_numpy.value_in_unit_system(md.units),
                                time_step.value_in_unit_system(md.units))
-    r[0] = md.get_positions()
+    assert np.all(gautschi.md.get_positions() == original_positions.value_in_unit_system(gautschi.md.units))
+    #gautschi.recenter_positions()
+    rgau[0] = md.get_positions()
     print(f"Gautschi: 0: kinetic energy: {md.kinetic_energy()}, potential energy: {md.potential_energy()}")
 
-    for i in range(len(r)):
+    for i in range(1, len(r)):
         p = gautschi.advance_step()
-        r[i] = p
+        rgau[i] = p
         if i % 1 == 0:
             print(
                 f"Gautschi: {i}: kin. energy: {gautschi.md.kinetic_energy()},"
                 f" pot. energy: {gautschi.md.potential_energy():.2f} "
                 f"({gautschi.md.harmonic_bond_engergy():.1f}, {gautschi.md.harmonic_angle_energy():.1f}),"
                 f"\t total energy: {gautschi.md.total_energy()}")
-    ani = animate_md(r, topology=openff_topology, step=1, return_as="")
+    ani = animate_md(rgau, topology=openff_topology, step=1, return_as="")
     ani.save(filename="complicated_gautschi.html", writer="html")
+
+    for i in range(0, len(r), 50):
+        e_sci = np.linalg.norm((r[i] - rscex[i]) / (r[i] + np.finfo(np.float64).eps))
+        e_g = np.linalg.norm((r[i] - rgau[i]) / (r[i] + np.finfo(np.float64).eps))
+        print(f"{i * gautschi.time_step} {gautschi.md.units.express_unit(openmm.unit.second)}:\t"
+              f"relative error Scipy Exponential integrator {100 * e_sci:.3f}%,\t"
+              f"relative error my Exponential integrator {100 * e_g:.3f}%.")
+    if i != len(r) - 1:
+        e_sci = np.linalg.norm((r[-1] - rscex[-1]) / (r[-1] + np.finfo(np.float64).eps))
+        e_g = np.linalg.norm((r[-1] - rgau[-1]) / (r[-1] + np.finfo(np.float64).eps))
+        print(f"{i * gautschi.time_step} {gautschi.md.units.express_unit(openmm.unit.second)}:\t"
+              f"relative error Scipy Exponential integrator {100 * e_sci:.3f}%,\t"
+              f"relative error my Exponential integrator {100 * e_g:.3f}%.")

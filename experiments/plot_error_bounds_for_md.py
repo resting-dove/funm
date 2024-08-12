@@ -164,8 +164,8 @@ if __name__ == "__main__":
         i_s.append(i)
         if err <= max_acc:
             break
-    plt.scatter(i_s, errors, marker="x")
-    plt.title("A priori error bounds for $\exp(-tA)$ with $||A||_2 = 2000$.")
+    plt.plot(i_s, errors, "x")
+    plt.title(r"A priori error bounds for $\exp(-tA)$ with $||A||_2 = 2000$.")
     plt.plot(*hochbruck_lubich(evals[0], t, n), label="Hochb&Lub", linestyle="solid")
     if np.abs(evals[0]) * t <= 1:
         plt.plot(*saad(np.abs(evals[0]), t, n), label="Saad", linestyle="dashed")
@@ -179,12 +179,12 @@ if __name__ == "__main__":
     plt.show()
     w = b / np.linalg.norm(b)
     (w, V, T, breakdown) = arnoldi(t * Omega2, w, 40)
-    plt.scatter(i_s, errors, marker="x")
-    plt.title("A posteriori error bounds for $\exp(-tA)$ with $||A||_2 = 2000$.")
+    plt.plot(i_s, errors, "x")
+    plt.title(r"A posteriori error bounds for $\exp(-tA)$ with $||A||_2 = 2000$.")
     # plt.scatter(*chen_musco_post(T[:3, :3], w=-100), label="Musco")
-    plt.scatter(*chen_musco_post(T[:10, :10], w=-100), label="Musco")
-    plt.scatter(*chen_musco_post(T[:25, :25], w=-100), label="Musco")
-    plt.scatter(*chen_musco_post(T[:40, :40], w=-100), label="Musco")
+    plt.plot(*chen_musco_post(T[:10, :10], w=-100), "or", label="Musco")
+    plt.plot(*chen_musco_post(T[:25, :25], w=-100), "or", label="Musco")
+    plt.plot(*chen_musco_post(T[:40, :40], w=-100), "or", label="Musco")
     plt.yscale("log")
     plt.legend()
     plt.show()

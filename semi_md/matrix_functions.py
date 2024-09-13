@@ -10,6 +10,21 @@ def sinc_sqrtm(A):
     return v @ np.diag(np.sinc(np.sqrt(w) / np.pi)) @ v.T
 
 
+def sinc_sqrtm_non_clip(A):
+    """Calculate sinc(sqrt(A)). Note that if we want sinc(t sqrt(Omega^2)), the input has to be t^2 Omega^2."""
+    w, v = scipy.linalg.eigh_tridiagonal(A.diagonal(), A.diagonal(-1))
+    # assert np.allclose(A @ v - v @ np.diag(w), np.zeros(A.shape))
+    return v @ np.diag(np.sinc(np.sqrt(w) / np.pi)) @ v.T
+
+
+def sinc_sqrtm_non_sym(A):
+    """Calculate sinc(sqrt(A)). Note that if we want sinc(t sqrt(Omega^2)), the input has to be t^2 Omega^2."""
+    w, v = scipy.linalg.eig(A)
+    w = np.clip(np.real(w), 0, np.inf)
+    # assert np.allclose(A @ v - v @ np.diag(w), np.zeros(A.shape))
+    return v @ np.diag(np.sinc(np.sqrt(w) / np.pi)) @ v.T
+
+
 def sinc2_sqrtm(A):
     """Calculate sinc^2(sqrt(A)). Note that if we want sinc^2(t sqrt(Omega^2)), the input has to be t^2 Omega^2."""
     w, v = scipy.linalg.eigh_tridiagonal(A.diagonal(), A.diagonal(-1))

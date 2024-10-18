@@ -60,7 +60,7 @@ def funm_krylov_v2(A, b: np.array, param, matfunc=scipy.linalg.expm, calculate_e
         H_exp_jax = np.array(H_exp)[-m:, 0]
         f = beta * (V @ H_exp_jax) + f
         fs[:, k] = f
-        update = np.linalg.norm(beta * H_exp_jax)
+        update = np.linalg.norm(beta * V @ H_exp_jax)
         if calculate_eigvals:
             eigvals[k] = np.linalg.eigvals(H_full[:current_size + m, :current_size + m])
         update_norms.append(update)
@@ -75,46 +75,61 @@ def funm_krylov_v2(A, b: np.array, param, matfunc=scipy.linalg.expm, calculate_e
     return fs, eigvals, update_norms, current_size + m
 
 
-def funm_krylov_v2_symmetric(A, b: np.array, matfunc=scipy.linalg.expm, restart_length: int = np.inf,
-                             stopping_acc=1e-10, bound: int = None):
+def lanczos_method(A, b: np.array, matfunc=scipy.sparse.linalg.expm, krylov_size: int = np.inf, *, max_starts: int = 1,
+                   stopping_acc=1e-10, estimate_at: int = None, arnoldi_acc=1e-10, stopping_decay=0.05):
     """The symmetric variant of the function above. Due to symmetry the matrix H will be tridiagonal, which might
     simplify things considerably.
 
+    :param A: symmetric matrix.
+    :param b: vector.
+    :param matfunc: function that takes a matrix and returns a matrix. The function needs to be adapted to type of A.
+    :param krylov_size: maximal size of the Krylov subspace.
+    :param max_starts: Maximum number of starts.
     :param stopping_acc the desired accurarcy if a bound is used.
-    :param bound after how many steps to estimate the spectrum and then use the expm bound to derive a number of needed
+    :param estimate_at after how many steps to estimate the spectrum and then use the expm bound to derive a number of needed
         steps. This is semi a-priori. Later will enable a posteriori as well, which will change the signature again.
+    :param arnoldi_acc: Parameter that's passed onto the Krylov basis generator on when to declare a breakdown.
+    :param stopping_decay: Early stopping when updates get too small in relative norm.
         """
-    if bound and bound > restart_length:
-        bound = None
+    assert krylov_size > 0
+    assert max_starts >= 1
+    if estimate_at and estimate_at > krylov_size:
+        estimate_at = None
+    stopping_criterion = False
     n = b.shape[0]
     beta = float(np.linalg.norm(b))
     w = b / beta
-    m = restart_length
+    m = krylov_size
     f = np.zeros((n, 1))
-    H_full = scipy.sparse.csc_array((m + 2, m), dtype=b.dtype)
-    fs = np.zeros((n, 1))
+    fs = np.zeros((n, max_starts))
+    HH = scipy.sparse.lil_array((krylov_size * max_starts + 2, krylov_size * max_starts), dtype=b.dtype)
     update_norms = []
-    k = 0
-    if bound:
-        (w, V, H, breakdown) = arnoldi(A=A, w=w, m=bound, trunc=1)
-        ritz_vals = get_eigvals_qr(H[:bound, :bound])
-        print(f"Largest ritz value is {np.max(np.abs(ritz_vals))}")
-        m = min(m, expm_error_bound(np.max(np.abs(ritz_vals)) / 4, stopping_acc) - bound)
-        (w, V, H, breakdown) = extend_arnoldi(A, V, w, H, s=bound, m=m, trunc=1)
-    else:
-        (w, V, H, breakdown) = arnoldi(A=A, w=w, m=m, trunc=1)
-    if breakdown:
-        # print(f"breakdown in step {breakdown}.")
-        m = breakdown
-    H_full[k * m: (k + 1) * m + 1, k * m: (k + 1) * m] = H
-    H_exp = matfunc(H_full[: (k + 1) * m, : (k + 1) * m])
-    H_exp_col = H_exp[-m:, [0]]
-    f = beta * (V @ H_exp_col) + f
-    fs[:, k] = f[:, 0]
-    update = np.linalg.norm(beta * H_exp_col)
-    update_norms.append(update)
+    current_size = 0
+    for k in range(max_starts):
+        if stopping_criterion:
+            fs = fs[:, :k]
+            break
+        (w, V, H, breakdown) = arnoldi(A=A, w=w, m=m, trunc=1, eps=arnoldi_acc)
+        if breakdown:
+            print("Breakdown")
+            stopping_criterion = True
+            m = breakdown
+        HH[current_size: current_size + m + 1, current_size: current_size + m] = H
+        H_exp = matfunc(HH[: current_size + m, : current_size + m])
+        H_exp_jax = H_exp[-m:, [0]]
+        f = beta * (V @ H_exp_jax) + f
+        fs[:, k] = f[:,0]
+        update = np.linalg.norm(beta * V @ H_exp_jax)
+        update_norms.append(update)
+        if update / np.linalg.norm(f) < stopping_acc:
+            stopping_criterion = True
+            print("Stopping accuracy reached.")
+        if k > 10 and (update / update_norms[-1] < stopping_decay):
+            stopping_criterion = True
+            print("Updates getting to small.")
+        current_size += m
 
-    return fs, update_norms, (k + 1) * m
+    return fs, update_norms, current_size
 
 
 def gershgorin_adaptive_expm(A, b: np.array, calculate_eigvals=True, stopping_acc=1e-10):

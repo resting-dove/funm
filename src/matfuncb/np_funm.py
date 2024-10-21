@@ -102,9 +102,11 @@ def lanczos_method(A, b: np.array, matfunc=scipy.sparse.linalg.expm, krylov_size
     m = krylov_size
     f = np.zeros((n, 1))
     fs = np.zeros((n, max_starts))
-    HH = scipy.sparse.lil_array((krylov_size * max_starts + 2, krylov_size * max_starts), dtype=b.dtype)
+    HH = scipy.sparse.csc_array((0, 0),
+                                dtype=b.dtype)  # ((krylov_size * max_starts + 2, krylov_size * max_starts), dtype=b.dtype)
     update_norms = []
     current_size = 0
+    subdiag_array = None
     for k in range(max_starts):
         if stopping_criterion:
             fs = fs[:, :k]
@@ -114,11 +116,13 @@ def lanczos_method(A, b: np.array, matfunc=scipy.sparse.linalg.expm, krylov_size
             print("Breakdown")
             stopping_criterion = True
             m = breakdown
-        HH[current_size: current_size + m + 1, current_size: current_size + m] = H
-        H_exp = matfunc(HH[: current_size + m, : current_size + m])
+        HH = scipy.sparse.block_array(([HH, None], [subdiag_array, scipy.sparse.csc_array(H[:m, :m])]), format="csc")
+        eta = H[m, m - 1]
+        subdiag_array = fill_block_in_top_right(eta, rows=m, cols=HH.shape[1])
+        H_exp = matfunc(HH)
         H_exp_jax = H_exp[-m:, [0]]
         f = beta * (V @ H_exp_jax) + f
-        fs[:, k] = f[:,0]
+        fs[:, k] = f[:, 0]
         update = np.linalg.norm(beta * V @ H_exp_jax)
         update_norms.append(update)
         if update / np.linalg.norm(f) < stopping_acc:
@@ -130,6 +134,10 @@ def lanczos_method(A, b: np.array, matfunc=scipy.sparse.linalg.expm, krylov_size
         current_size += m
 
     return fs, update_norms, current_size
+
+
+def fill_block_in_top_right(eta, rows, cols):
+    return scipy.sparse.coo_array(([eta], ([0], [cols - 1])), shape=(rows, cols))
 
 
 def gershgorin_adaptive_expm(A, b: np.array, calculate_eigvals=True, stopping_acc=1e-10):

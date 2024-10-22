@@ -2,18 +2,19 @@ import numpy as np
 import scipy
 from typing import Union
 
-from src.matfuncb.np_funm import funm_krylov_v2, funm_krylov_v2_symmetric
+from src.matfuncb.np_funm import funm_krylov_v2, lanczos_method
 from src.matfuncb.error_bounds import get_length_gershgorin, get_length_power
 
 
-def matfuncb(A: Union[np.array, scipy.sparse.sparray], b: np.array, f: Union[callable, str], k: int, symmetric= False,
-             accuracy:float = 1e-20, bound_method: str = ""):
+def matfuncb(A: Union[np.array, scipy.sparse.sparray], b: np.array, f: Union[callable, str], k: int, r: int, symmetric=False,
+             accuracy: float = 1e-20, bound_method: str = ""):
     """The central function to calculate the action of the matrix function f(A) on the vector b.
 
     :param A: The matrix.
     :param b: The vector.
     :param f: The matrix function, must accept matrix inputs.
     :param k: The size of the Krylov subspace.
+    :param r: The maximum number of times to restart the method.
     :param symmetric: Whether A is guaranteed to be symmetric.
     :param accuracy: The desired accuracy, to be used in combination with a bound. By default a value smaller than
             double precision eps.
@@ -34,11 +35,10 @@ def matfuncb(A: Union[np.array, scipy.sparse.sparray], b: np.array, f: Union[cal
     Krylov size by a posteriori error bound
     Enabling restarts
     Evaluation by quadrature
-    Evaluation by diagonalization
 
-    Krylov size by a priori error bound for non symmetric matrix
 
     Not part of this:
+    Krylov size by a priori error bound for non symmetric matrix
     """
     if isinstance(f, str):
         if f == "exp":
@@ -59,16 +59,16 @@ def matfuncb(A: Union[np.array, scipy.sparse.sparray], b: np.array, f: Union[cal
         m = get_length_power(sign * A, b, accuracy)
     elif "semi-a-priori" in bound_method:
         if not symmetric:
-            raise NotImplementedError("Semi a-priori krylo bound not implemented for non symmetric matrices yet.")
+            raise NotImplementedError("Semi a-priori Krylov bound not implemented for non symmetric matrices.")
         bound = 2
     info["bound_krylov_size"] = m
     eps = np.finfo(b.dtype).eps
     k = min(k, m)
     info["max_krylov_size"] = k
-    param = {"restart_length": k, "num_restarts": 1}
+    param = {"restart_length": k, "num_restarts": r}
     if symmetric:
-        fAb, _, k = funm_krylov_v2_symmetric(A, b, f, k, stopping_acc=accuracy, bound=bound)
+        fAbs, _, k = lanczos_method(A, b, f, k, max_starts=r, stopping_acc=accuracy, estimate_at=bound)
     else:
-        fAb, _, _, k = funm_krylov_v2(A, b, param, f, calculate_eigvals=False, stopping_acc=eps)
+        fAbs, _, _, k = funm_krylov_v2(A, b, param, f, calculate_eigvals=False, stopping_acc=eps)
     info["actual_krylov_size"] = k
-    return fAb.reshape(-1), info
+    return fAbs[:, 0].reshape(-1), info

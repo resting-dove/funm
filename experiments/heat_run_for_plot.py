@@ -6,6 +6,7 @@ import subprocess
 
 from src.matfuncb.np_funm import lanczos_method
 from src.matfuncb.krylov_basis import arnoldi
+from src.matfuncb.quad_expm import get_eigvals_qr
 
 root_path = os.getcwd()
 
@@ -45,12 +46,22 @@ def get_lanczos_errors(V, H, beta, exact, matfunc, step=1, upper=100):
     return idx, errors
 
 
+def diag_expm(H:scipy.sparse.csc_array):
+    w, v = scipy.linalg.eig(H.todense())
+    vals = np.exp(w)
+    w2 = get_eigvals_qr(H.todense())
+    return v @ np.diag(vals) @ v.T
+
+def funm_expm(H:scipy.sparse.csc_array):
+    return scipy.linalg.funm(H.todense(), np.exp)
+
+
 if __name__ == "__main__":
     plot_store = {}
     plot_store["filename"] = os.path.basename(__file__)
     plot_store["git_commit"] = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
 
-    n = 50  # Interior grid points in each direction
+    n = 15  # Interior grid points in each direction
     N = n ** 3  # Total number of interior points
     h = 1 / (n + 1)
     # A = -1 / h ** 2 * get_3d_laplacian(n, n, n)
@@ -83,7 +94,7 @@ if __name__ == "__main__":
         num_starts = 550 // krylov_size + 1
 
         # Calculate the matrix exponential
-        npfs, npupdate_norms, final_size = lanczos_method(t * A, u0.flatten(), scipy.sparse.linalg.expm,
+        npfs, npupdate_norms, final_size = lanczos_method(t * A, u0.flatten(), funm_expm,
                                                           krylov_size=krylov_size, max_starts=num_starts,
                                                           stopping_acc=-np.inf, arnoldi_acc=-np.inf,
                                                           stopping_decay=-np.inf)
@@ -96,14 +107,15 @@ if __name__ == "__main__":
     beta = np.linalg.norm(u0.flatten())
     (w, V, H, m) = arnoldi(t * A, u0.flatten() / beta, N, trunc=1)
     print("Arnoldi finished")
-    idx, lanczos_errors = get_lanczos_errors(V, scipy.sparse.csc_array(H), beta, exact, scipy.sparse.linalg.expm, 2,
+    idx, lanczos_errors = get_lanczos_errors(V, scipy.sparse.csc_array(H), beta, exact, funm_expm, 2,
                                              upper=300)
     plot_store["Lanczos idx"] = idx
     plot_store["Lanczos error_norms"] = lanczos_errors
     lanc_plot = ax.plot(idx, lanczos_errors, color='black', label=r"m=$\infty$")
 
-    idx, lanczos_errors = get_lanczos_errors(V, H, beta, exact, scipy.linalg.expm, 20,
-                                             upper=300)
+
+    # idx, lanczos_errors = get_lanczos_errors(V, H, beta, exact, scipy.linalg.expm, 20,
+    #                                          upper=300)
     # plot_store["Dense Lanczos idx"] = idx
     # plot_store["Dense Lanczos error_norms"] = lanczos_errors
     # lanc_plot = ax.plot(idx, lanczos_errors, color='grey', label=r"m=$\infty$ (dense)")
@@ -117,5 +129,5 @@ if __name__ == "__main__":
     ax.set_ylabel("Error")
     ax.legend(framealpha=.5, scatterpoints=1, numpoints=1)
     fig.savefig(os.path.join(root_path, f"figures/heat{n}ErrorPlot.png"))
-    fig.show()
+    plt.show()
     1 + 1

@@ -8,7 +8,6 @@ def test_dense():
     b = np.random.random(5)
     result, _ = matfuncb(A, b, "exp", 5)
     expected = scipy.linalg.expm(A).dot(b)
-    print(result - expected)
     assert np.all(np.isclose(result, expected))
 
 
@@ -17,7 +16,6 @@ def test_sparse():
     b = np.random.random(5)
     result, _ = matfuncb(A, b, "exp", 5)
     expected = scipy.sparse.linalg.expm_multiply(A, b)
-    print(result - expected)
     assert np.all(np.isclose(result, expected))
 
 
@@ -26,7 +24,6 @@ def test_callable():
     b = np.random.random(5)
     result, _ = matfuncb(A, b, scipy.linalg.cosm, 5)
     expected = scipy.linalg.cosm(A).dot(b)
-    print(result - expected)
     assert np.all(np.isclose(result, expected))
 
 
@@ -36,7 +33,6 @@ def test_symmetric():
     b = np.random.random(5)
     result, _ = matfuncb(A, b, scipy.sparse.linalg.expm, 5, symmetric=True)
     expected = scipy.linalg.expm(A).dot(b)
-    print(result - expected)
     assert np.all(np.isclose(result, expected))
 
 def test_lil_larger():
@@ -47,10 +43,8 @@ def test_lil_larger():
     b = np.random.random(n)
     result, _ = matfuncb(A, b, scipy.sparse.linalg.expm, n, symmetric=True)
     expected = scipy.linalg.expm(A).dot(b)
-    print(result - expected)
     assert np.all(np.isclose(result, expected))
     result, _ = matfuncb(A, b, scipy.sparse.linalg.expm, n, symmetric=False)
-    print(result - expected)
     assert np.all(np.isclose(result, expected))
 
 if __name__ == "__main__":

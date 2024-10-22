@@ -62,6 +62,11 @@ class BaseSemiExponentialIntegrator():
         center_v = np.sum(v * m, axis=0) / np.sum(m)
         self.md.set_velocities(self.md.get_velocities() - center_v)
 
+    def get_Omega(self, p: np.array):
+        RxLarge, Rx_invLarge = get_Rx(p, self.original_positions, self.md.openff_topology)
+        Omega2 = self.M_sqrt_inv @ RxLarge @ self.K @ Rx_invLarge @ self.M_sqrt_inv
+        return Omega2, RxLarge, Rx_invLarge
+
     def advance_step(self):
         raise NotImplementedError
 
@@ -163,9 +168,8 @@ class OneStepGautschi(BaseSemiExponentialIntegrator):
         p = self.md.get_positions()
         v = self.md.get_velocities()
         vi = self.M_sqrt @ v.reshape(-1)
-        RxLarge, Rx_invLarge = get_Rx(p, self.original_positions, self.md.openff_topology)
+        Omega2, RxLarge, Rx_invLarge = self.get_Omega(p)
         xi = self.M_sqrt @ p.reshape(-1)
-        Omega2 = self.M_sqrt_inv @ RxLarge @ self.K @ Rx_invLarge @ self.M_sqrt_inv
 
         x1, Lambda = self.x1_step(xi, vi, Omega2, RxLarge, k)
         x2 = self.x2_step(xi, vi, x1, Lambda, Omega2, RxLarge, k)
@@ -188,9 +192,8 @@ class ScipyExponential(BaseSemiExponentialIntegrator):
         p = self.md.get_positions()
         v = self.md.get_velocities()
         vi = self.M_sqrt @ v.reshape(-1)
-        RxLarge, Rx_invLarge = get_Rx(p, self.original_positions, self.md.openff_topology)
+        Omega2, RxLarge, Rx_invLarge = self.get_Omega(p)
         xi = self.M_sqrt @ p.reshape(-1)
-        Omega2 = self.M_sqrt_inv @ RxLarge @ self.K @ Rx_invLarge @ self.M_sqrt_inv
 
         X = np.concatenate((xi, vi))
         n = len(xi)

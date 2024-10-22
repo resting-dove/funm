@@ -91,7 +91,7 @@ if __name__ == "__main__":
        -6.40752346e-11, -6.40752346e-11, -5.15432360e-11, -9.04323836e-11,
        -9.04323836e-11, -8.72485086e-11, -8.72485086e-11, -7.04265194e-11,
        -7.04265194e-11, -7.75841509e-11, -7.75841509e-11])
-    evals = np.clip(evals, 0, np.inf)
+    evals = np.clip(evals, 0, np.inf) * 10000
     #evals[random.sample(range(38), k=18)] = 0
     evals = np.sort(evals)[::-1]  # sort returns ascending
     n = min(len(evals), 80)
@@ -119,15 +119,20 @@ if __name__ == "__main__":
     max_acc = 1e-16
     errors = []
     i_s = []
+    app_prev = np.zeros_like(b)
+    updates = []
     for i in range(2, 100):  # int(len(evals) / 2)):
         app, info = matfuncb(t ** 2 * Omega2, b, fm_sparse, k=i, symmetric=True)
         #app, info = matfuncb(t ** 2 * Omega2, b, sinc_sqrtm_non_clip, k=i, symmetric=True)
         err = np.linalg.norm(app - exact)
         errors.append(err)
+        updates.append(np.linalg.norm(app - app_prev))
+        app_prev = app
         i_s.append(i)
         if err <= max_acc:
             break
     plt.plot(i_s, errors, label="Lanczos")
+    plt.plot(i_s, updates, label="Updates")
    # print(hochbruck_lubich(-evals[0], t**2, 20))
     # print(hochbruck_lubich(-evals[0], t**2, n))
     plt.plot(*hochbruck_lubich(-1 * max(np.abs(la_eval), np.abs(sm_eval)), t**2, n), label="HL", linestyle="solid")
@@ -139,12 +144,12 @@ if __name__ == "__main__":
     plt.plot(*chen_musco(t**2 * sm_eval, t**2 * la_eval, w=shift, n=n, f=f), label="CGMM", linestyle="dashdot")
 
     w = b / np.linalg.norm(b)
-    (w, V, T, breakdown) = arnoldi(t**2 * Omega2, w, 41, trunc=2)
+    (w, V, T, breakdown) = arnoldi(t**2 * Omega2, w, 81, trunc=2)
     if T.shape[0] >= 10:
         plt.plot(*chen_musco_post(T[:10, :10], w=shift, f=f, fix_0_eval=True), "or", label="CGMM")
         lower, upper = afanasjew_post(T, V, t**2*Omega2, m=10, f=fm_non_symmetric)
-        plt.plot(10, lower, "ob", label="AEEG")
-        plt.plot(10, upper, "og", label="AEEG")
+        plt.plot(10, lower, "ob", label="AEEG l")
+        plt.plot(10, upper, "og", label="AEEG u")
 
     if T.shape[0] >= 25:
         plt.plot(*chen_musco_post(T[:25, :25], w=shift, f=f, fix_0_eval=True), "or")
@@ -156,7 +161,17 @@ if __name__ == "__main__":
         plt.plot(40, lower, "ob")
         plt.plot(40, upper, "og")
         plt.plot(*chen_musco_post(T[:40, :40], w=shift, f=f, fix_0_eval=True), "or")
+    if T.shape[0] >= 60:
+        lower, upper = afanasjew_post(T, V, t ** 2 * Omega2, m=60, f=fm_non_symmetric)
+        plt.plot(60, lower, "ob")
+        plt.plot(60, upper, "og")
+        plt.plot(*chen_musco_post(T[:60, :60], w=shift, f=f, fix_0_eval=True), "or")
+    if T.shape[0] >= 80:
+        lower, upper = afanasjew_post(T, V, t ** 2 * Omega2, m=80, f=fm_non_symmetric)
+        plt.plot(80, lower, "ob")
+        plt.plot(80, upper, "og")
+        plt.plot(*chen_musco_post(T[:80, :80], w=shift, f=f, fix_0_eval=True), "or")
     plt.yscale("log")
-    plt.ylim(top=10, bottom=1e-18)
+    #plt.ylim(top=10, bottom=1e-18)
     plt.legend()
     plt.show()

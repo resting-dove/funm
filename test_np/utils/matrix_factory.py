@@ -36,7 +36,7 @@ def get_symmetric_matrix_by_evals(evals: np.array, return_vectors=False, path_to
         if save and path_to_vectors:
             np.save(os.path.join(path_to_vectors, f"ortho_vectors_{n}.npy"), S)
 
-    A = S.transpose() @ np.diag(evals) @ S
+    A = S @ np.diag(evals) @ S.transpose()
     if not return_vectors:
         return A
     else:
@@ -53,7 +53,7 @@ def get_matrix_by_evals(evals: np.array, multiplicities: np.array, return_vector
         blocks.append(np.eye(multiplicities[i]) * evals[i] + np.diag(np.ones(multiplicities[i] - 1), 1))
     J = scipy.linalg.block_diag(*blocks)
     S = get_orthogonal_matrix(n)
-    A = S.transpose() @ J @ S
+    A = S @ J @ S.transpose()
     if not return_vectors:
         return A
     else:

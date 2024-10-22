@@ -275,13 +275,13 @@ def afanasjew_post(T: np.array, V:np.array, A:np.array, m: int, f: callable):
     la_eval = ritz[-1]
     B = np.array([[sm_eval, 0], [1, la_eval]])
     E = np.zeros((2, Tm.shape[1]))
-    E[0, -1] = 1
+    E[0, -1] = T[m, m-1]
     H_tilde = np.block([[Tm, np.zeros((Tm.shape[0], 2))], [E, B]])
     fH = f(H_tilde)
     phi_1 = np.abs(fH[-2, 0])
     phi_2 = np.abs(fH[-1, 0])
     lower = phi_1 * v
-    upper = lower + phi_2 * (A - la_eval * np.eye(A.shape[0])) @ v
+    upper = lower + phi_2 * (A@v - la_eval * v)
     return np.linalg.norm(lower), np.linalg.norm(upper)
 
 

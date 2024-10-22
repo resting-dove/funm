@@ -100,8 +100,8 @@ def lanczos_method(A, b: np.array, matfunc=scipy.sparse.linalg.expm, krylov_size
     beta = float(np.linalg.norm(b))
     w = b / beta
     m = krylov_size
-    f = np.zeros((n, 1))
-    fs = np.zeros((n, max_starts))
+    f = np.zeros((n, 1), dtype=b.dtype)
+    fs = np.zeros((n, max_starts), dtype=b.dtype)
     HH = scipy.sparse.csc_array((0, 0),
                                 dtype=b.dtype)  # ((krylov_size * max_starts + 2, krylov_size * max_starts), dtype=b.dtype)
     update_norms = []

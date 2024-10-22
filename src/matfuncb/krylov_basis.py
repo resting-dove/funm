@@ -49,8 +49,8 @@ def arnoldi(A, w: np.array, m: int, trunc=np.inf, eps=1e-10):
     """Calculate an Arnoldi decomposition of dimension m.
     """
     breakdown = False
-    H = np.zeros((m + 1, m + 1))
-    new_V_big = np.empty((w.shape[0], m))
+    H = np.zeros((m + 1, m + 1), dtype=w.dtype)
+    new_V_big = np.empty((w.shape[0], m), dtype=w.dtype)
     new_V_big[:, 0] = w
     # make the k_small column in H and the k_small+1 column in V
     for k_small in np.arange(m):

@@ -16,7 +16,7 @@ def get_index(final_size: int, krylov_size: int) -> list:
     return idx
 
 
-def prepare_starting_vector2(evecs, n: int, norm):
+def prepare_starting_vector2(evecs, n: int, norm=scipy.linalg.norm):
     evecs = np.random.random((n ** 3, 1))
     return (evecs / norm(evecs))
 
@@ -29,7 +29,7 @@ def get_lanczos_errors(V, H, beta, exact, matfunc, step=1, upper=100, norm=scipy
     m = H.shape[1]
     idx = np.arange(0, min(m + 1, upper), step)
     errors = np.zeros(len(idx))
-    errors[0] = np.linalg.norm(exact)
+    errors[0] = norm(exact)
 
     for idxx, i in enumerate(idx[1:], start=1):
         H_exp = matfunc(H[:i, :i])
@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
 
     def A_norm(x):
-        return np.sqrt(x.T @ -A @ x)
+        return np.sqrt(x.T @ (np.sign(evals[-1]) * A) @ x)
 
 
     func_dense = scipy.linalg.expm
@@ -65,6 +65,7 @@ if __name__ == "__main__":
     radius = np.abs(center - w)
     bound_n = 200
     norm_name = "A"
+    apply_err0 = False
 
     if f"evecs_heat_{n}_{t}.npy" in os.listdir(os.path.join(root_path, "precalculated")):
         evecs = np.load(os.path.join(os.path.join(root_path, "precalculated"), f"evecs_heat_{n}_{t}.npy"))
@@ -79,7 +80,7 @@ if __name__ == "__main__":
     else:
         raise RuntimeError()
 
-    u0 = prepare_starting_vector2(evecs, n, norm)
+    u0 = prepare_starting_vector2(evecs, n)
     print("prepared u0")
     exact = evecs.T @ u0.flatten()
     print("first matvec")
@@ -88,7 +89,12 @@ if __name__ == "__main__":
     print("calculated exact")
     evecs = None  # Maybe this frees space
     print("killed evecs")
-    exact_norm = norm(exact)
+    if apply_err0:
+        exact_norm = norm(exact)
+    else:
+        exact_norm = 1
+        print(f"Exact norm: {norm(exact)}")
+    plot_store["exact norm"] = exact_norm
     fig, ax = get_fig_ax()
     colors = Colors()
     i = 0
@@ -151,7 +157,7 @@ if __name__ == "__main__":
     ax.set_yscale("log")
     ax.set_ylim(bottom=np.finfo(evals[0].dtype).eps / 1000, top=10000)
     ax.set_xlabel("Lanczos iterations")
-    ax.set_ylabel(r"Error $||\cdot||_2$")
+    ax.set_ylabel(fr"Error $||\cdot||_{norm_name}$")
     ax.legend(framealpha=.5, scatterpoints=1, numpoints=1)
     postprocess_style()
     fig.tight_layout()

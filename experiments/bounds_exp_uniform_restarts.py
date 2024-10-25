@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import scipy
 import os
+import subprocess
 from utils import get_fig_axs, Colors, postprocess_style
 from src.matfuncb.krylov_basis import arnoldi
 from src.matfuncb.error_bounds import *
@@ -64,6 +65,10 @@ def restarted_lanczos(A, b: np.array, krylov_size: int = np.inf, *, max_starts: 
 
 
 if __name__ == "__main__":
+    plot_store = {}
+    plot_store["filename"] = os.path.basename(__file__)
+    plot_store["git_commit"] = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
+
     n = 25  # Interior grid points in each direction
     N = n ** 3  # Total number of interior points
     h = 1
@@ -72,14 +77,27 @@ if __name__ == "__main__":
     t = 1
     print("evals gotten")
 
+
+    def A_norm(x):
+        return np.sqrt(x.T @ (np.sign(evals[-1]) * A) @ x)
+
+
     func_dense = scipy.linalg.expm
     func_sparse = scipy.sparse.linalg.expm
     func_scalar = np.exp
     center, w = min(evals), 1  # min(evals) - 1
     radius = np.abs(center - w)
     bound_n = 140
+    norm_name = "A"
+    apply_err0 = True
 
     evecs = scipy.sparse.eye(N)
+    if norm_name == "2":
+        norm = scipy.linalg.norm
+    elif norm_name == "A":
+        norm = A_norm
+    else:
+        raise RuntimeError()
 
     u0 = prepare_starting_vector2(evecs, n)
     print("prepared u0")
@@ -90,6 +108,12 @@ if __name__ == "__main__":
     print("calculated exact")
     evecs = None  # Maybe this frees space
     print("killed evecs")
+    if apply_err0:
+        exact_norm = norm(exact)
+    else:
+        exact_norm = 1
+        print(f"Exact norm: {norm(exact)}")
+    plot_store["exact norm"] = exact_norm
     fig, axs = get_fig_axs(2, 1, sharex=True)
     colors = Colors()
     markers = ["o", "^"]
@@ -104,43 +128,53 @@ if __name__ == "__main__":
         error_norms = [np.linalg.norm(exact - 0)] + list(np.linalg.norm(exact.reshape((-1, 1)) - npfs, axis=0))
         idx = get_index(final_size, krylov_size)
         name = f"m:{krylov_size}"
-        line, = axs[j].plot(idx, error_norms, label=name, marker=markers[j], linestyle="solid", c="black")
+        plot_store[name + " errors"] = error_norms
+        plot_store[name + " idx"] = idx
+        line, = axs[j].plot(idx, error_norms, label=name, linestyle="solid", c="black")
         line, = axs[j].plot(idx[1:], npupdate_norms, linestyle="none", c="black", marker=markers[j])
 
         i = 0
-
-        beta = np.linalg.norm(u0.flatten())
+        beta = norm(u0.flatten())
         (v, V, H, m) = arnoldi(t * A, u0.flatten() / beta, krylov_size + 50, trunc=1)
-        # print("Arnoldi finished")
-        # idx, lanczos_errors = get_lanczos_errors(V, scipy.sparse.csc_array(H), beta, exact, func_sparse, 2,
-        #                                          upper=bound_n)
-        # lanc_plot = axs[j].plot(idx, lanczos_errors, color='black')
 
         i += 2
         ms, bounds = restarted_post_no_kappa(A, u0.flatten(), H[:krylov_size, :krylov_size], w=w, center=center,
                                              radius=radius,
-                                             starts=bound_n // krylov_size + 1, f=func_scalar)
+                                             starts=bound_n // krylov_size + 1, f=func_scalar, norm=norm)
+        name = f"rest post nk {krylov_size}"
+        plot_store[name + " bounds"] = bounds
+        plot_store[name + " ms"] = ms
         axs[j].plot(ms, bounds, linestyle=":", c=colors[i])
 
         ms, bounds = restarted_post(H[:krylov_size, :krylov_size], w=w, starts=bound_n // krylov_size + 1,
                                     f=func_scalar,
                                     fix_0_eval=True)
-        axs[j].plot(ms, bounds, label="CGMM", linestyle="--", c=colors[i])
+        name = f"rest post {krylov_size}"
+        plot_store[name + " bounds"] = bounds
+        plot_store[name + " ms"] = ms
+        axs[j].plot(ms, exact_norm * bounds, label="CGMM", linestyle="--", c=colors[i])
 
         i += 1
         HH, v = restarted_lanczos(A, u0.flatten() / beta, krylov_size=krylov_size,
                                   max_starts=bound_n // krylov_size + 1)
         ms, bounds = afanasjew_post_for_plot(HH.todense(), v, A, krylov_size, starts=bound_n // krylov_size,
                                              f=func_dense)
+        name = f"Afanasjew 1 {krylov_size}"
+        plot_store[name + " bounds"] = bounds[0, :]
+        plot_store[name + " ms"] = ms
         axs[j].plot(ms, bounds[0, :], label="AEEG 1", linestyle="--", c=colors[i])
+        name = f"Afanasjew 2 {krylov_size}"
+        plot_store[name + " bounds"] = bounds[1, :]
+        plot_store[name + " ms"] = ms
         axs[j].plot(ms, bounds[1, :], label="AEEG 2", linestyle="--", c=colors[i + 1])
 
         axs[j].set_yscale("log")
         axs[j].set_ylim(bottom=np.finfo(evals[0].dtype).eps / 1000, top=10000)
         axs[-1].set_xlabel("Lanczos iterations")
-        axs[j].set_ylabel(r"Error $||\cdot||_2$")
+        axs[j].set_ylabel(fr"Error $||\cdot||_{norm_name}$")
         axs[j].legend(framealpha=.5, scatterpoints=1, numpoints=1)
-    # np.savez(os.path.join(root_path, "artifacts", "plot_store" + f"heat{n}_bounds"), **plot_store)
+    np.savez(os.path.join(root_path, "artifacts", "plot_store" + f"_bounds_exp_uniform_{n}_restarts_{norm_name}-norm"),
+             **plot_store)
 
     fig.suptitle(
         rf"${func_scalar.__name__}(A)b$, $\Lambda(A)\subset[{min(evals):.1f}, {max(evals):.1f}]$, " + r"$A\in\mathbb{"
@@ -148,7 +182,7 @@ if __name__ == "__main__":
         N}\times{N}" + "}$")
     postprocess_style()
     fig.tight_layout()
-    plt.savefig(os.path.join(root_path, f"figures/bounds_exp_uniform_restarts_{n}.png"))
+    plt.savefig(os.path.join(root_path, f"figures/bounds_exp_uniform_{n}_restarts_{norm_name}-norm.png"))
     # fig.savefig(os.path.join(root_path, f"figures/heat{n}_bounds_ErrorPlot.png"))
     plt.show()
     1 + 1

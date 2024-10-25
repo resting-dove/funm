@@ -332,7 +332,8 @@ def chen_musco_post(T: np.array, w: float, f=np.exp, fix_0_eval=True):
     return m, integral / 2 / np.pi * cg_bound
 
 
-def chen_musco_post_no_kappa(A, b, T: np.array, w: float, center: float, radius: float, f=np.exp, norm=scipy.linalg.norm):
+def chen_musco_post_no_kappa(A, b, T: np.array, w: float, center: float, radius: float, f=np.exp,
+                             norm=scipy.linalg.norm):
     """
     A posteriori error bound for Lanczos approximation of f(A).
     In comparison to the a priori bound the tridiagonal matrix T is available.
@@ -361,14 +362,15 @@ def chen_musco_post_no_kappa(A, b, T: np.array, w: float, center: float, radius:
     return np.arange(m + 1), integral / 2 / np.pi * cg_bound
 
 
-def restarted_post_no_kappa(A, b, T_small: np.array, w: float, center: float, radius: float, starts=1, f=np.exp):
+def restarted_post_no_kappa(A, b, T_small: np.array, w: float, center: float, radius: float, starts=1, f=np.exp,
+                            norm=scipy.linalg.norm):
     """Variation of the Chen et al. bound above but for restarted Lanczos."""
     ritz = np.sort(scipy.linalg.eigvals(T_small))
     sm_eval = ritz[0]
     la_eval = ritz[-1]
     assert w < sm_eval or w > la_eval
 
-    rs = np.arange(1, starts + 1)
+    rs = np.arange(0, starts + 1)
 
     a2c = lambda theta: center + radius * (np.cos(theta) + 1j * np.sin(theta))
     dr = lambda theta: np.abs(radius * (-np.sin(theta) + 1j * np.cos(theta)))
@@ -382,8 +384,8 @@ def restarted_post_no_kappa(A, b, T_small: np.array, w: float, center: float, ra
         print(f"integral: {integral}, abserr: {abserr}")
 
     m = T_small.shape[0]
-    cg_bound = get_restarted_cg_errors(A, w, b, m, starts=starts)
-    return np.arange(m, (starts + 1) * m, m), integral / 2 / np.pi * cg_bound
+    cg_bound = get_restarted_cg_errors(A, w, b, m, starts=starts, norm=norm)
+    return np.arange(0, (starts + 1) * m, m), integral / 2 / np.pi * cg_bound
 
 
 def restarted_post(T_small: np.array, w: float, starts=1, f=np.exp, fix_0_eval=True):

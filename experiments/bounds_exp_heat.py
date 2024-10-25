@@ -65,7 +65,7 @@ if __name__ == "__main__":
     radius = np.abs(center - w)
     bound_n = 200
     norm_name = "A"
-    apply_err0 = False
+    apply_err0 = True
 
     if f"evecs_heat_{n}_{t}.npy" in os.listdir(os.path.join(root_path, "precalculated")):
         evecs = np.load(os.path.join(os.path.join(root_path, "precalculated"), f"evecs_heat_{n}_{t}.npy"))
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     plot_store[name + " ms"] = ms
     ax.plot(ms, bounds, linestyle=":", c=colors.get(i, False))
 
-    beta = norm(u0.flatten())
+    beta = np.linalg.norm(u0.flatten())
     (v, V, H, m) = arnoldi(t * A, u0.flatten() / beta, bound_n + 50, trunc=1)
     print("Arnoldi finished")
     idx, lanczos_errors = get_lanczos_errors(V, scipy.sparse.csc_array(H), beta, exact, func_sparse, 2,

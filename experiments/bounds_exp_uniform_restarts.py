@@ -77,25 +77,32 @@ if __name__ == "__main__":
     t = 1
     print("evals gotten")
 
-
-    def A_norm(x):
-        return np.sqrt(x.T @ (np.sign(evals[-1]) * A) @ x)
-
-
     func_dense = scipy.linalg.expm
     func_sparse = scipy.sparse.linalg.expm
     func_scalar = np.exp
     center, w = min(evals), 1  # min(evals) - 1
     radius = np.abs(center - w)
     bound_n = 140
-    norm_name = "A"
+    norm_name = "A-wI"
     apply_err0 = True
+
+
+    def A_wI_norm(x, axis=None):
+        if axis is None:
+            return np.sqrt(x.T @ (np.sign(evals[-1]) * (t * A - w * scipy.sparse.eye(*A.shape))) @ x)
+        elif axis == 1:
+            return [A_wI_norm(x[i, :]) for i in range(x.shape[0])]
+        elif axis == 0:
+            return [A_wI_norm(x[:, i]) for i in range(x.shape[1])]
+        else:
+            raise RuntimeError()
+
 
     evecs = scipy.sparse.eye(N)
     if norm_name == "2":
         norm = scipy.linalg.norm
-    elif norm_name == "A":
-        norm = A_norm
+    elif norm_name == "A-wI":
+        norm = A_wI_norm
     else:
         raise RuntimeError()
 
@@ -125,7 +132,7 @@ if __name__ == "__main__":
                                                           krylov_size=krylov_size, max_starts=num_starts,
                                                           stopping_acc=-np.inf, arnoldi_acc=-np.inf,
                                                           stopping_decay=-np.inf)
-        error_norms = [np.linalg.norm(exact - 0)] + list(np.linalg.norm(exact.reshape((-1, 1)) - npfs, axis=0))
+        error_norms = [norm(exact - 0)] + list(norm(exact.reshape((-1, 1)) - npfs, axis=0))
         idx = get_index(final_size, krylov_size)
         name = f"m:{krylov_size}"
         plot_store[name + " errors"] = error_norms
@@ -171,7 +178,7 @@ if __name__ == "__main__":
         axs[j].set_yscale("log")
         axs[j].set_ylim(bottom=np.finfo(evals[0].dtype).eps / 1000, top=10000)
         axs[-1].set_xlabel("Lanczos iterations")
-        axs[j].set_ylabel(fr"Error $||\cdot||_{norm_name}$")
+        axs[j].set_ylabel(r"Error $||\cdot||_{" + norm_name + r"}$")
         axs[j].legend(framealpha=.5, scatterpoints=1, numpoints=1)
     np.savez(os.path.join(root_path, "artifacts", "plot_store" + f"_bounds_exp_uniform_{n}_restarts_{norm_name}-norm"),
              **plot_store)

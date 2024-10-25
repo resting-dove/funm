@@ -62,7 +62,7 @@ if __name__ == "__main__":
     radius = np.abs(center - w)
     bound_n = 140
     norm_name = "A"
-    apply_err0 = False
+    apply_err0 = True
 
     evecs = scipy.sparse.eye(N)
     if norm_name == "2":

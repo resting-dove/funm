@@ -195,7 +195,7 @@ def setup_circle_and_kappa(sm_eval: float, la_eval: float, w: float, center=None
 
 
 def chen_musco_no_kappa(A, b, sm_eval: float, la_eval: float, w: float, n: int, S: list, f=np.exp, *, center=None,
-                        radius=None):
+                        radius=None, norm=scipy.linalg.norm):
     """
     A theoretical error bound for the Lanczos approximation of f(A).
     This makes use of actual step m errors of the CG method.
@@ -205,10 +205,10 @@ def chen_musco_no_kappa(A, b, sm_eval: float, la_eval: float, w: float, n: int, 
     SIAM J. Matrix Anal. Appl., vol. 43, no. 2, pp. 787–811, Jun. 2022, doi: 10.1137/21M1427784.
     """
     assert len(S) == 2  # For now just allow one interval [a,b]
-    m = np.arange(1, n)
+    m = np.arange(n + 1)
     center, radius, kappa = setup_circle_and_kappa(sm_eval, la_eval, w, center, radius)
 
-    cg_bound = get_cg_errors(A, w, b, len(m))
+    cg_bound = get_cg_errors(A, w, b, n, norm=norm)
 
     a2c = lambda theta: center + radius * (np.cos(theta) + 1j * np.sin(theta))
     dr = lambda theta: np.abs(radius * (-np.sin(theta) + 1j * np.cos(theta)))
@@ -332,7 +332,7 @@ def chen_musco_post(T: np.array, w: float, f=np.exp, fix_0_eval=True):
     return m, integral / 2 / np.pi * cg_bound
 
 
-def chen_musco_post_no_kappa(A, b, T: np.array, w: float, center: float, radius: float, f=np.exp):
+def chen_musco_post_no_kappa(A, b, T: np.array, w: float, center: float, radius: float, f=np.exp, norm=scipy.linalg.norm):
     """
     A posteriori error bound for Lanczos approximation of f(A).
     In comparison to the a priori bound the tridiagonal matrix T is available.
@@ -357,7 +357,7 @@ def chen_musco_post_no_kappa(A, b, T: np.array, w: float, center: float, radius:
         print(f"integral: {integral}, abserr: {abserr}")
 
     m = T.shape[0]
-    cg_bound = get_cg_errors(A, w, b, m + 1)
+    cg_bound = get_cg_errors(A, w, b, m, norm=norm)
     return np.arange(m + 1), integral / 2 / np.pi * cg_bound
 
 

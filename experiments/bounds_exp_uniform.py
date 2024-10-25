@@ -50,25 +50,25 @@ if __name__ == "__main__":
     t = 1
     print("evals gotten")
 
-
-    def A_norm(x):
-        return np.sqrt(x.T @ (np.sign(evals[-1]) * A) @ x)
-
-
     func_dense = scipy.linalg.expm
     func_sparse = scipy.sparse.linalg.expm
     func_scalar = np.exp
     center, w = min(evals), 1  # min(evals) - 1
     radius = np.abs(center - w)
     bound_n = 140
-    norm_name = "A"
+    norm_name = "A-wI"
     apply_err0 = True
+
+
+    def A_wI_norm(x):
+        return np.sqrt(x.T @ (np.sign(evals[-1]) * (t * A - w * scipy.sparse.eye(*A.shape))) @ x)
+
 
     evecs = scipy.sparse.eye(N)
     if norm_name == "2":
         norm = scipy.linalg.norm
-    elif norm_name == "A":
-        norm = A_norm
+    elif norm_name == "A-wI":
+        norm = A_wI_norm
     else:
         raise RuntimeError()
 
@@ -145,7 +145,8 @@ if __name__ == "__main__":
     plot_store[name + " ms"] = ms
     ax.plot(ms, bounds, label="S", linestyle="--", c=colors[i])
 
-    np.savez(os.path.join(root_path, "artifacts", "plot_store" + f"_bounds_exp_uniform_{n}_{norm_name}-norm"), **plot_store)
+    np.savez(os.path.join(root_path, "artifacts", "plot_store" + f"_bounds_exp_uniform_{n}_{norm_name}-norm"),
+             **plot_store)
 
     ax.set_title(
         rf"${func_scalar.__name__}(A)b$, $\Lambda(A)\subset[{min(evals):.1f}, {max(evals):.1f}]$, " + r"$A\in\mathbb{"
@@ -154,7 +155,7 @@ if __name__ == "__main__":
     ax.set_yscale("log")
     ax.set_ylim(bottom=np.finfo(evals[0].dtype).eps / 1000, top=10000)
     ax.set_xlabel("Lanczos iterations")
-    ax.set_ylabel(fr"Error $||\cdot||_{norm_name}$")
+    ax.set_ylabel(r"Error $||\cdot||_{" + norm_name + r"}$")
     ax.legend(framealpha=.5, scatterpoints=1, numpoints=1)
     postprocess_style()
     fig.tight_layout()

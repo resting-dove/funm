@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
 
     def A_norm(x):
-        return np.sqrt(x.T @ (np.sign(evals[-1]) * A) @ x)
+        return np.sqrt(x.T @ (np.sign(evals[-1]) * t * A) @ x)
 
 
     func_dense = scipy.linalg.expm

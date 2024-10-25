@@ -233,36 +233,39 @@ def get_restarted_cg_bound(kappa, m, starts=1):
     return bound ** np.arange(1, starts + 1)
 
 
-def get_cg_errors(A, w, b, n):
+def get_cg_errors(A, w, b, n, solution=None, norm=scipy.linalg.norm):
     """
     Get the real 2-norm errors of CG applied to (A-wI)x=b.
     This is not realistic as part of an a-priori error indicator but for theoretical purposes.
     """
-    errors = []
-    sol = scipy.sparse.linalg.spsolve(A - w * scipy.sparse.eye(*A.shape), b)
+    if solution is None:
+        solution = scipy.sparse.linalg.spsolve(A - w * scipy.sparse.eye(*A.shape), b)
+    errors = [norm(solution)]
 
     def callback(xk):
-        error = scipy.linalg.norm(sol - xk)
+        error = norm(solution - xk)
         errors.append(error)
 
-    scipy.sparse.linalg.cg(A - w * scipy.sparse.eye(*A.shape), b, maxiter=n, callback=callback)
-    cg_errors = np.zeros(n)
+    scipy.sparse.linalg.cg(A - w * scipy.sparse.eye(*A.shape), b, x0=np.zeros_like(b), maxiter=n, callback=callback)
+    cg_errors = np.zeros(n + 1)
     cg_errors[:len(errors)] = errors
     return cg_errors
 
 
-def get_restarted_cg_errors(A, w, b, m, starts=1):
+def get_restarted_cg_errors(A, w, b, m, starts=1, solution=None, norm=scipy.linalg.norm):
     """
     Get the 2-norm errors of restarted CG applied to (A-wI)x=b.
     This is not realistic as part of an a-priori error indicator but for theoretical purposes.
     """
     errors = []
-    sol = scipy.sparse.linalg.spsolve(A - w * scipy.sparse.eye(*A.shape), b)
-    x0 = np.zeros_like(sol)
+    if solution is None:
+        solution = scipy.sparse.linalg.spsolve(A - w * scipy.sparse.eye(*A.shape), b)
+    errors = [norm(solution)]
+    x0 = np.zeros_like(solution)
     for _ in range(starts):
         x0, _ = scipy.sparse.linalg.cg(A - w * scipy.sparse.eye(*A.shape), b, x0=x0, maxiter=m)
-        errors.append(scipy.linalg.norm(sol - x0))
-    cg_errors = np.zeros(starts)
+        errors.append(norm(solution - x0))
+    cg_errors = np.zeros(starts + 1)
     cg_errors[:len(errors)] = errors
     return cg_errors
 

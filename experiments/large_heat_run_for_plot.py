@@ -3,6 +3,7 @@ import numpy as np
 import scipy
 import os
 import subprocess
+from utils import get_fig_ax, postprocess_style, Colors
 
 from src.matfuncb.np_funm import lanczos_method
 from src.matfuncb.krylov_basis import arnoldi
@@ -23,18 +24,31 @@ def prepare_starting_vector3(n: int):
     return evecs / scipy.linalg.norm(evecs)
 
 
-def get_lanczos_errors(V, H, beta, exact, matfunc, step=1, upper=100):
+def get_lanczos_errors(V, H, beta, exact, matfunc, step=1, upper=100, norm=scipy.linalg.norm):
     m = H.shape[1]
     idx = np.arange(0, min(m + 1, upper), step)
     errors = np.zeros(len(idx))
-    errors[0] = np.linalg.norm(exact)
+    errors[0] = norm(exact)
 
     for idxx, i in enumerate(idx[1:], start=1):
         H_exp = matfunc(H[:i, :i])
         H_exp_jax = H_exp[:, [0]]
         f = beta * (V[:, :i] @ H_exp_jax)
-        errors[idxx] = np.linalg.norm(f.flatten() - exact)
+        errors[idxx] = norm(f.flatten() - exact)
     return idx, errors
+
+
+def expm_sparse_tridiag(T: scipy.sparse.csr_array):
+    w, v = scipy.linalg.eigh_tridiagonal(T.diagonal(0), T.diagonal(-1))
+    return v @ np.diagflat(np.exp(w)) @ v.T
+
+
+def get_lanczos_approx(V, H, beta, matfunc):
+    m = H.shape[1]
+    H_exp = matfunc(H[:m, :m])
+    H_exp_jax = H_exp[:, [0]]
+    f = beta * (V[:, :m] @ H_exp_jax)
+    return f
 
 
 if __name__ == "__main__":
@@ -54,43 +68,75 @@ if __name__ == "__main__":
     plot_store['n'] = n
     plot_store['t'] = t
 
+    func_dense = scipy.linalg.expm
+    func_sparse = scipy.sparse.linalg.expm
+    func_sparse_sym = expm_sparse_tridiag
+    func_scalar = np.exp
+    bound_n = 550
+    norm_name = "A"
+
     u0 = prepare_starting_vector3(n)
 
-    fig, ax = plt.subplots()
 
-    beta = np.linalg.norm(u0.flatten())
-    exact_n = 3375
-    (w, V, H, m) = arnoldi(t * A, u0.flatten() / beta, exact_n + 1, trunc=1)
-    print("Arnoldi finished")
-    exact = beta * (V[:, :exact_n] @ scipy.sparse.linalg.expm(scipy.sparse.csc_array(H[:exact_n, :exact_n]))[:, [0]]).flatten()
-    idx, lanczos_errors = get_lanczos_errors(V, scipy.sparse.csc_array(H), beta, exact, scipy.sparse.linalg.expm, 2,
-                                             upper=400)
+    def A_norm(x, axis=None):
+        if axis is None:
+            return np.sqrt(x.T @ (np.sign(evals[-1]) * (t * A)) @ x)
+        elif axis == 1:
+            return [A_norm(x[i, :]) for i in range(x.shape[0])]
+        elif axis == 0:
+            return [A_norm(x[:, i]) for i in range(x.shape[1])]
+        else:
+            raise RuntimeError()
+
+
+    if norm_name == "2":
+        norm = scipy.linalg.norm
+    elif norm_name == "A":
+        norm = A_norm
+    else:
+        raise RuntimeError()
+
+    beta = float(np.linalg.norm(u0))
+    (v, V, H, m) = arnoldi(t * A, u0.flatten() / beta, 1000, trunc=1)
+    exact = get_lanczos_approx(V, H, beta, func_sparse_sym)
+    exact = exact.flatten()
+    fig, ax = get_fig_ax()
+    colors = Colors()
+    idx, lanczos_errors = get_lanczos_errors(V, scipy.sparse.csc_array(H), beta, exact, func_sparse_sym, 2,
+                                             upper=400, norm=norm)
     plot_store["Lanczos idx"] = idx
     plot_store["Lanczos error_norms"] = lanczos_errors
     lanc_plot = ax.plot(idx, lanczos_errors, color='black', label=r"m=$\infty$")
-
-    for krylov_size in [20, 10, 6]:
-        num_starts = 550 // krylov_size + 1
+    markers = ["o", "^", "x"]
+    for j, krylov_size in enumerate([20, 10, 6]):
+        num_starts = bound_n // krylov_size + 1
 
         # Calculate the matrix exponential
-        npfs, npupdate_norms, final_size = lanczos_method(t * A, u0.flatten(), scipy.sparse.linalg.expm,
+        npfs, npupdate_norms, final_size = lanczos_method(t * A, u0.flatten(), func_sparse,
                                                           krylov_size=krylov_size, max_starts=num_starts,
                                                           stopping_acc=-np.inf, arnoldi_acc=-np.inf,
                                                           stopping_decay=-np.inf)
-        error_norms = [np.linalg.norm(exact - 0)] + list(np.linalg.norm(exact.reshape((-1, 1)) - npfs, axis=0))
+        error_norms = [norm(exact.flatten())] + list(norm(exact.reshape((-1, 1)) - npfs, axis=0))
         idx = get_index(final_size, krylov_size)
         name = f"m:{krylov_size}"
-        plot_store[name + " error_norms"] = error_norms
+        plot_store[name + " errors"] = error_norms
+        plot_store[name + " update_norms"] = npupdate_norms
         plot_store[name + " idx"] = idx
-        line, = ax.plot(idx, error_norms, label=name, marker=".", linestyle="None")
+        line, = ax.plot(idx, error_norms, linestyle="solid", c=colors[j])
+        line, = ax.plot(idx[1:], npupdate_norms, linestyle="none", c=colors[j], marker=markers[j], label=name)
 
-    np.savez(os.path.join(root_path, "artifacts", "plot_store" + f"heat{n}"), **plot_store)
+    np.savez(os.path.join(root_path, "artifacts", "plot_store" + f"large_heat{n}_{norm_name}-norm"), **plot_store)
 
-    ax.set_title(f"Heat equation with n={n}")
+    fig.suptitle(
+        rf"${func_scalar.__name__}(A)b$, $\Lambda(A)\subset[{min(evals):.1f}, {max(evals):.1f}]$, " + r"$A\in\mathbb{"
+                                                                                                      r"R}^{" + rf"{
+        N}\times{N}" + "}$")
     ax.set_yscale("log")
-    ax.set_ylim(bottom=max(np.finfo(evals[0].dtype).eps, plt.ylim()[0]) / 1000)
+    ax.set_ylim(bottom=np.finfo(evals[0].dtype).eps / 1000)
     ax.set_xlabel("Lanczos iterations")
-    ax.set_ylabel("Error")
+    ax.set_ylabel(r"Error $||\cdot||_{" + norm_name + r"}$")
     ax.legend(framealpha=.5, scatterpoints=1, numpoints=1)
-    fig.savefig(os.path.join(root_path, f"figures/heat{n}ErrorPlot.png"))
+    postprocess_style()
+    fig.tight_layout()
+    fig.savefig(os.path.join(root_path, f"figures/large_heat_{n}_restarts_{norm_name}-norm.png"))
     plt.show()

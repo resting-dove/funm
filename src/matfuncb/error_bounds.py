@@ -302,6 +302,29 @@ def get_determinant_tridiag(T, shift=0.0, return_all=False):
     else:
         return np.array(f)
 
+def get_det_swz_tridiag(T, w=0.0, z=0.0, return_all=False):
+    n = T.shape[0]
+    assert n > 1
+    # f3 = 0  # f_{n-3}
+    num, den = [1], [1]
+    f = [1]
+    num.append(T[0,0] - w)
+    den.append(T[0,0] - z)
+    f.append(num[-1] / den[-1])
+    for i in range(1, n):
+        a_w, a_z, b, c = T[i, i] - w, T[i, i] - z, T[i - 1, i], T[i, i - 1]
+        num.append(a_w * num[-1] - b * c * num[-2])
+        den.append(a_z * den[-1] - b * c * den[-2])
+        f.append(num[-1] / den[-1])
+        if i > 1 and i % 4 == 0:
+            factor = min(np.abs(num[1]), np.abs(den[1]))
+            num[-2:] = num[-2:] / factor
+            den[-2:] = den[-2:] / factor
+    if not return_all:
+        return f[-1]
+    else:
+        return np.array(f)
+
 
 def chen_musco_post(T: np.array, w: float, f=np.exp, fix_0_eval=True):
     """
@@ -321,7 +344,7 @@ def chen_musco_post(T: np.array, w: float, f=np.exp, fix_0_eval=True):
     dr = lambda theta: np.abs(r * (-np.sin(theta) + 1j * np.cos(theta)))
     F = lambda theta: np.abs(f(a2c(theta)))
     H_w_z = lambda theta: bound_h_w_z(w, a2c(theta), sm_eval, la_eval)
-    Dets = lambda theta: np.abs(get_determinant_tridiag(T, w, True) / get_determinant_tridiag(T, a2c(theta), True))
+    Dets = lambda theta: np.abs(get_det_swz_tridiag(T, w, a2c(theta), True))
     integrand = lambda theta: F(theta) * H_w_z(theta) * Dets(theta) * dr(theta)
     integral, abserr = scipy.integrate.quad_vec(integrand, 0, 2 * np.pi)
     if np.any(abserr > integral):
@@ -351,7 +374,7 @@ def chen_musco_post_no_kappa(A, b, T: np.array, w: float, center: float, radius:
     dr = lambda theta: np.abs(radius * (-np.sin(theta) + 1j * np.cos(theta)))
     F = lambda theta: np.abs(f(a2c(theta)))
     H_w_z = lambda theta: bound_h_w_z(w, a2c(theta), sm_eval, la_eval)
-    Dets = lambda theta: np.abs(get_determinant_tridiag(T, w, True) / get_determinant_tridiag(T, a2c(theta), True))
+    Dets = lambda theta: np.abs(get_det_swz_tridiag(T, w, a2c(theta), True))
     integrand = lambda theta: F(theta) * H_w_z(theta) * Dets(theta) * dr(theta)
     integral, abserr = scipy.integrate.quad_vec(integrand, 0, 2 * np.pi)
     if np.any(abserr > integral):
@@ -376,8 +399,7 @@ def restarted_post_no_kappa(A, b, T_small: np.array, w: float, center: float, ra
     dr = lambda theta: np.abs(radius * (-np.sin(theta) + 1j * np.cos(theta)))
     F = lambda theta: np.abs(f(a2c(theta)))
     H_w_z = lambda theta: bound_h_w_z(w, a2c(theta), sm_eval, la_eval)
-    Dets = lambda theta: np.abs(
-        get_determinant_tridiag(T_small, w) / get_determinant_tridiag(T_small, a2c(theta))) ** rs
+    Dets = lambda theta: np.abs(get_det_swz_tridiag(T_small, w, a2c(theta))) ** rs
     integrand = lambda theta: F(theta) * H_w_z(theta) * Dets(theta) * dr(theta)
     integral, abserr = scipy.integrate.quad_vec(integrand, 0, 2 * np.pi)
     if np.any(abserr > integral):
@@ -403,8 +425,7 @@ def restarted_post(T_small: np.array, w: float, starts=1, f=np.exp, fix_0_eval=T
     dr = lambda theta: np.abs(r * (-np.sin(theta) + 1j * np.cos(theta)))
     F = lambda theta: np.abs(f(a2c(theta)))
     H_w_z = lambda theta: bound_h_w_z(w, a2c(theta), sm_eval, la_eval)
-    Dets = lambda theta: np.abs(
-        get_determinant_tridiag(T_small, w) / get_determinant_tridiag(T_small, a2c(theta))) ** starts_ra
+    Dets = lambda theta: np.abs(get_det_swz_tridiag(T_small, w, a2c(theta))) ** starts_ra
     integrand = lambda theta: F(theta) * H_w_z(theta) * Dets(theta) * dr(theta)
     integral, abserr = scipy.integrate.quad_vec(integrand, 0, 2 * np.pi)
     if np.any(abserr > integral):
@@ -415,7 +436,7 @@ def restarted_post(T_small: np.array, w: float, starts=1, f=np.exp, fix_0_eval=T
     return np.arange(m, (starts + 1) * m, m), integral / 2 / np.pi * cg_bound
 
 
-def afanasjew_post(T: np.array, v: np.array, A: np.array, m: int, f: callable):
+def afanasjew_post(T: np.array, v: np.array, A: np.array, m: int, f: callable, norm=scipy.linalg.norm):
     """
     Error indicator for the restarted Arnoldi method for f(A)b.
 
@@ -438,13 +459,13 @@ def afanasjew_post(T: np.array, v: np.array, A: np.array, m: int, f: callable):
     phi_2 = np.abs(fH[-1, 0])
     lower = phi_1 * v
     upper = lower + phi_2 * (A @ v - la_eval * v)
-    return np.array([np.linalg.norm(lower), np.linalg.norm(upper)])
+    return np.array([norm(lower), norm(upper)])
 
 
-def afanasjew_post_for_plot(T, v, A, m, starts, f):
+def afanasjew_post_for_plot(T, v, A, m, starts, f, norm=scipy.linalg.norm):
     bounds = np.zeros((2, starts))
     for i in range(starts):
-        bounds[:, i] = afanasjew_post(T, v, A, (i + 1) * m, f)
+        bounds[:, i] = afanasjew_post(T, v, A, (i + 1) * m, f, norm)
     return np.arange(m, (starts + 1) * m, m), bounds
 
 

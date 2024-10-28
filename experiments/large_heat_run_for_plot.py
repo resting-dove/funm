@@ -74,6 +74,7 @@ if __name__ == "__main__":
     func_scalar = np.exp
     bound_n = 550
     norm_name = "A"
+    exact_n = 3375
 
     u0 = prepare_starting_vector3(n)
 
@@ -97,7 +98,7 @@ if __name__ == "__main__":
         raise RuntimeError()
 
     beta = float(np.linalg.norm(u0))
-    (v, V, H, m) = arnoldi(t * A, u0.flatten() / beta, 1000, trunc=1)
+    (v, V, H, m) = arnoldi(t * A, u0.flatten() / beta, exact_n, trunc=1)
     exact = get_lanczos_approx(V, H, beta, func_sparse_sym)
     exact = exact.flatten()
     fig, ax = get_fig_ax()

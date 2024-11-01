@@ -1,0 +1,3 @@
+[submodule "matlab_integration/wkm"]
+	path = matlab_integration/wkm
+	url = https://github.com/nadukandi/wkm.git

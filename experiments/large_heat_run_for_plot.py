@@ -98,7 +98,7 @@ if __name__ == "__main__":
         raise RuntimeError()
 
     beta = float(np.linalg.norm(u0))
-    (v, V, H, m) = arnoldi(t * A, u0.flatten() / beta, exact_n, trunc=1)
+    (v, V, H, m) = arnoldi(t * A, u0.flatten() / beta, exact_n + 1, trunc=1)
     exact = get_lanczos_approx(V, H, beta, func_sparse_sym)
     exact = exact.flatten()
     fig, ax = get_fig_ax()

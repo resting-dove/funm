@@ -142,9 +142,8 @@ if __name__ == "__main__":
     u0 = prepare_starting_vector2(None, n)
 
     beta = float(np.linalg.norm(u0))
-    (v, V, H, m) = arnoldi(t * A, u0.flatten() / beta, 1000, trunc=1)
+    (v, V, H, m) = arnoldi(t * A, u0.flatten() / beta, bound_n, trunc=1)
     exact = get_lanczos_approx(V, H, beta, func_sparse_sym)
-    exact.reshape((N, 1))
     if apply_err0:
         exact_norm = norm(exact.flatten())
     else:
@@ -166,6 +165,7 @@ if __name__ == "__main__":
         idx = get_index(final_size, krylov_size)
         name = f"m:{krylov_size}"
         plot_store[name + " errors"] = error_norms
+        plot_store[name + " update_norms"] = npupdate_norms
         plot_store[name + " idx"] = idx
         line, = axs[j].plot(idx, error_norms, label=name, linestyle="solid", c="black")
         line, = axs[j].plot(idx[1:], npupdate_norms, linestyle="none", c="black", marker=markers[j])

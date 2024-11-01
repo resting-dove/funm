@@ -141,7 +141,7 @@ if __name__ == "__main__":
         line, = axs[j].plot(idx[1:], npupdate_norms, linestyle="none", c="black", marker=markers[j])
 
         i = 0
-        beta = norm(u0.flatten())
+        beta = np.linalg.norm(u0.flatten())
         (v, V, H, m) = arnoldi(t * A, u0.flatten() / beta, krylov_size + 50, trunc=1)
 
         i += 2

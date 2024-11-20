@@ -14,3 +14,7 @@ ase_unit_system = unit.UnitSystem([
     unit.radian_base_unit])
 
 eV2kJ_mol = 96.49
+
+# Conversion factor to express Angstrom/ fs in ASE units
+velocity_conversion_factor = (1 * (unit.nano * unit.meter) / (unit.pico * unit.second)).value_in_unit(
+    unit.angstrom / (unit.femto * unit.second)) * ase_units.Angstrom / ase_units.fs

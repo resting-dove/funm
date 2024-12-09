@@ -6,7 +6,8 @@ import scipy.sparse
 from nanover.omni.ase_omm import ASEOpenMMSimulation
 
 from semi_md.ase_md.OmmCalculator import OmmCalculator
-from semi_md.ase_md.unit_helpers import velocity_conversion_factor
+from semi_md.ase_md.unit_helpers import velocity_conversion_factor, ase_unit_system
+from semi_md.computeK import compute_K_with_dict
 from semi_md.rotations import get_Rx
 from semi_md.utilities.read_protein_simulation import read_protein_simulation
 from semi_md.ase_md.SemiAnalyticMd import SemiAnalyticMd
@@ -46,8 +47,14 @@ if __name__ == "__main__":
     )
     vv.setup_gautschi_integrator(forcefield=openff_forcefield, openff_topology=openff_topology)
 
+    scipy.sparse.save_npz("proteinK.npz", vv.K)
 
-    # scipy.sparse.save_npz("proteinK.npz", vv.K)
+    pos = vv.atoms._calc.context.getState(getPositions=True).getPositions(asNumpy=True)
+    K = compute_K_with_dict(pos,
+                            openff_forcefield.get_parameter_handler("Bonds").find_matches(openff_topology, True),
+                            unit.md_unit_system)
+    scipy.sparse.save_npz(f"OpenMM_K.npz", K)
+
 
     def extract_and_save(step: int):
         r, v = trajectory[step].get_positions(), trajectory[step].get_velocities()
@@ -58,7 +65,7 @@ if __name__ == "__main__":
 
 
     step = 0
-    # extract_and_save(step)
+    extract_and_save(step)
 
     step = 400
-    # extract_and_save(step)
+    extract_and_save(step)

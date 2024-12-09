@@ -30,10 +30,9 @@ if __name__ == "__main__":
     vv = ase.md.VelocityVerlet(
         atoms=atoms,
         timestep=1 * ase_units.fs,
-        trajectory="mytraj.traj")
+        trajectory="protein.traj")
 
     epots, ekins, etots, temps = [], [], [], []
-
 
 
     def printenergy(a=atoms):  # store a reference to atoms in the definition.

@@ -25,9 +25,9 @@ def semi_analytic_step(self: SemiAnalyticMd, r: np.ndarray, v: np.ndarray):
 
 if __name__ == "__main__":
     n_steps = 400
-    time_step = 0.1 * unit.femtosecond
+    time_step = 1 * unit.femtosecond
     ase_time_step = time_step.value_in_unit(unit.femtosecond) * ase_units.fs
-    trajectory = ase.io.read('../ase_md/mytraj.traj', index=':')
+    trajectory = ase.io.read('../ase_md/protein.traj', index=':')
     simulation, openff_forcefield, openff_topology = read_protein_simulation(1 * unit.femtosecond)
     ase_omm_sim = ASEOpenMMSimulation.from_simulation(simulation)
     ase_omm_sim.time_step = ase_time_step
@@ -46,19 +46,19 @@ if __name__ == "__main__":
     )
     vv.setup_gautschi_integrator(forcefield=openff_forcefield, openff_topology=openff_topology)
 
-    scipy.sparse.save_npz("proteinK.npz", vv.K)
 
+    # scipy.sparse.save_npz("proteinK.npz", vv.K)
 
     def extract_and_save(step: int):
         r, v = trajectory[step].get_positions(), trajectory[step].get_velocities()
         omega2, xi, vi, g_xi, RxLarge = semi_analytic_step(vv, r, v)
-        scipy.sparse.save_npz(f"Omega2_{step * time_step}{time_step.unit._name}.npz", omega2)
-        np.savez(f"vectors_{step * time_step}{time_step.unit._name}.npz", xi=xi, vi=vi, g_xi=g_xi)
-        scipy.sparse.save_npz(f"RxLarge_{step * time_step}{time_step.unit._name}.npz", RxLarge)
+        scipy.sparse.save_npz(f"Omega2_{(step * time_step).real}{time_step.unit._name}.npz", omega2)
+        np.savez(f"vectors_{(step * time_step).real}{time_step.unit._name}.npz", xi=xi, vi=vi, g_xi=g_xi)
+        scipy.sparse.save_npz(f"RxLarge_{(step * time_step).real}{time_step.unit._name}.npz", RxLarge)
 
 
     step = 0
-    extract_and_save(step)
+    # extract_and_save(step)
 
     step = 400
-    extract_and_save(step)
+    # extract_and_save(step)

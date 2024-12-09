@@ -10,7 +10,7 @@ from nanover.ase.omm_calculator import OpenMMCalculator
 from openmm.unit import kilojoules_per_mole
 
 from semi_md.computeK import compute_K_with_dict
-from unit_helpers import ase_unit_system, ase_time_base_unit
+from semi_md.ase_md.unit_helpers import ase_unit_system, ase_time_base_unit
 
 
 class OmmCalculator(OpenMMCalculator):

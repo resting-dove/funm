@@ -3,10 +3,17 @@ import numpy as np
 import openff.toolkit
 import scipy
 
-from gautschiIntegrators.gautschiIntegrators.one_step import OneStepF
-from semi_md.ase_md.MatfuncEvaluator import MatfuncEvaluator
+from gautschiIntegrators.gautschiIntegrators.matrix_functions import DenseWkmEvaluator, SymDiagonalizationEvaluator
+from gautschiIntegrators.gautschiIntegrators.one_step import OneStepF, OneStepGS99
+from gautschiIntegrators.gautschiIntegrators.two_step import TwoStepIntegratorF
 from semi_md.nanover.openmm_basic_sim import copy_supply_properties, save_to_traj
 from semi_md.rotations import get_Rx
+
+integrators = {
+    "TwoStepF": TwoStepIntegratorF,
+    "OneStepF": OneStepF,
+    "OneStepGS99": OneStepGS99
+}
 
 
 class SemiAnalyticMd(ase.md.md.MolecularDynamics):
@@ -27,7 +34,7 @@ class SemiAnalyticMd(ase.md.md.MolecularDynamics):
         atoms_copy = copy_supply_properties(atoms, forces)
         save_to_traj(atoms_copy, "simpleAnalytic_K_forces.traj")
 
-        xi_n, vi_n = self.integrator.step(omega2, xi, vi)
+        xi_n, vi_n = self.integrator.service_step(omega2, xi, vi)
         x_n = self.M_sqrt_inv @ xi_n
         v_n = self.M_sqrt_inv @ vi_n
 
@@ -38,7 +45,7 @@ class SemiAnalyticMd(ase.md.md.MolecularDynamics):
         self.atoms.set_velocities(v_n.reshape((-1, 3)))
         return None
 
-    def setup_gautschi_integrator(self, forcefield, openff_topology):
+    def setup_gautschi_integrator(self, forcefield, openff_topology, integrator_method="TwoStepF"):
         self.openff_topology: openff.toolkit.Topology = openff_topology
         self.original_positions = self.atoms.get_positions()
         self.K = self.atoms._calc.calculate_k(self.original_positions, forcefield, openff_topology)
@@ -51,9 +58,10 @@ class SemiAnalyticMd(ase.md.md.MolecularDynamics):
         self.M_sqrt_inv = scipy.sparse.kron(scipy.sparse.diags_array(1 / np.sqrt(self.atoms.get_masses().flatten())),
                                             np.eye(3),
                                             format="coo").tocsr()
-        mfE = MatfuncEvaluator()
-        self.integrator = OneStepF(self.dt, cosm=mfE.sym_cosm_sqrt, sincm=mfE.sym_sincm_sqrt, msinm=mfE.sym_msinm_sqrt,
-                                   g=self.md_nonlinearity)
+        self.integrator = integrators[integrator_method](self.dt, g=self.md_nonlinearity, t_end=np.inf,
+                                                         x0=self.original_positions.flatten(),
+                                                         v0=self.original_positions.flatten() * 0,
+                                                         evaluator=SymDiagonalizationEvaluator())
 
     def md_nonlinearity(self, xi: np.array):
         """The nonlinearity g of the differential equation x'' = -A @ x + g(x).

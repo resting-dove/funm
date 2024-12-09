@@ -29,15 +29,9 @@ def get_repeated_rot(r_current, r_old, base_atom_idx, n_atoms, topology) -> (
 
 
 def get_Rx(r_current, r_old, openff_topology) -> (scipy.sparse.csr_array, scipy.sparse.csr_array):
-    RxLarge = scipy.sparse.lil_array((r_current.size, r_current.size), dtype=np.float64)
-    Rx_invLarge = scipy.sparse.lil_array((r_current.size, r_current.size), dtype=np.float64)
-    # for i in range(openff_topology.n_atoms):
-    #     relevant_atoms = list(range(openff_topology.n_atoms))
-    #     Rx = get_rotation(r_current[relevant_atoms], r_old[relevant_atoms])
-    #     RxLarge[i * 3: (i + 1) * 3, i * 3: (i + 1) * 3] = Rx
-    #     Rx_invLarge[i * 3: (i + 1) * 3, i * 3: (i + 1) * 3] = Rx.T
     relevant_atoms = list(range(openff_topology.n_atoms))
     Rx = scipy.sparse.csr_array(get_rotation(r_current[relevant_atoms], r_old[relevant_atoms]))
     RxLarge: scipy.sparse.csr_array = scipy.sparse.block_diag([Rx] * len(r_current), format="csr")
     Rx_invLarge = RxLarge.T
     return RxLarge.tocsr(), Rx_invLarge.tocsr()
+    # return scipy.sparse.eye_array(*RxLarge.shape, format="csr"), scipy.sparse.eye_array(*RxLarge.shape, format="csr")

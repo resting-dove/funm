@@ -69,7 +69,7 @@ if __name__ == '__main__':
     radius = max(evals) * t ** 2 - w  # np.abs(center - w)
     bound_n = 40
     norm_name = "A-wI"
-    apply_err0 = True
+    apply_err0 = False
     exact_n = 2000
 
 
@@ -172,11 +172,11 @@ if __name__ == '__main__':
         name = f"Afanasjew 1 {k}"
         plot_store[name + " bounds"] = bounds[0, :]
         plot_store[name + " ms"] = ms
-        ax.plot(ms, bounds[0, :], label="AEEG 1", linestyle="--", c=colors[j])
+        ax.plot(ms, bounds[0, :], label="AEGG 1", linestyle="--", c=colors[j])
         name = f"Afanasjew 2 {k}"
         plot_store[name + " bounds"] = bounds[1, :]
         plot_store[name + " ms"] = ms
-        # ax.plot(ms, bounds[1, :], label="AEEG 2", linestyle="--", c=colors.get(j, True))
+        # ax.plot(ms, bounds[1, :], label="AEGG 2", linestyle="--", c=colors.get(j, True))
         j += 1
 
     name = f"m:infty"

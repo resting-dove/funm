@@ -63,7 +63,7 @@ if __name__ == '__main__':
     radius = max(evals) * t ** 2 - w  # np.abs(center - w)
     bound_n = 40
     norm_name = "A-wI"
-    apply_err0 = True
+    apply_err0 = False
     exact_n = 2000
 
 

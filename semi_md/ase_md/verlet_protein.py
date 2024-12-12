@@ -54,13 +54,12 @@ if __name__ == "__main__":
         ekins.append(ekin)
         etots.append(etot)
         temps.append(temp)
-        if len(epots) % 10 == 0:
-            print(f'Epot = {epot:.3f}kJ/mol  Ekin = {ekin:.3f}kJ/mol (T={temp:3.0f}K) '
-                  f'Etot = {etot:.3f}kJ/mol')
+        print(f'Epot = {epot:.3f}kJ/mol  Ekin = {ekin:.3f}kJ/mol (T={temp:3.0f}K) '
+              f'Etot = {etot:.3f}kJ/mol')
 
 
     # Now run the dynamics
-    vv.attach(printenergy, interval=1)
+    vv.attach(printenergy, interval=100)
     printenergy()
     vv.run(n_steps)
 
@@ -70,8 +69,9 @@ if __name__ == "__main__":
         "ekins": ekins,
         "etots": etots,
         "temps": temps,
+        "timestep": str(time_step),
         "filename": os.path.basename(__file__),
         "git_commit": subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip(),
     }
-    np.savez(os.path.join(root_path, "artifacts", "plot_store" + f"VV_protein"), **plot_store)
-    make_plots(steps, epots, ekins, etots, temps, "ASE VV: ")
+    np.savez(os.path.join(root_path, "artifacts", "plot_store" + f"_verlet_protein"), **plot_store)
+    make_plots(steps, epots, ekins, etots, temps, os.path.join(root_path, f"figures/verlet_protein.png"))

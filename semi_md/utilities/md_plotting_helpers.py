@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from experiments.utils import get_fig_ax, Colors, postprocess_style
 
 
 def parse_log_file(log_file_path):
@@ -23,47 +24,26 @@ def parse_log_file(log_file_path):
     return steps, potenergies, kinenergies, totnenergies, temperatures
 
 
-def make_plots(steps, potenergies, kinenergies, totenergies, temperatures, title=""):
+def make_plots(steps, potenergies, kinenergies, totenergies, temperatures, save_path=""):
     # Create figure and first axis
-    plt.figure(figsize=(10, 6))
-    ax1 = plt.gca()  # Get current axis
-    ax2 = ax1.twinx()  # Create another axis that shares the same x-axis
+    fig, ax = get_fig_ax()
+    colors = Colors()
+    ax2 = ax.twinx()  # Create another axis that shares the same x-axis
 
     # Plot energy on the first y-axis
-    ax1.plot(steps, potenergies, marker='o', linestyle='-', color='red', label='Energy')
-    ax1.set_xlabel('Time Step')
-    ax1.set_ylabel('Energy', color='red')
-    ax1.tick_params(axis='y', labelcolor='red')
+    ax.plot(steps, potenergies, marker='o', linestyle='-', color=colors[0], label='Pot. Energy')
+    ax.set_xlabel('Time Step')
+    ax.tick_params(axis='y')
 
-    # Plot temperature on the second y-axis
-    ax2.plot(steps, temperatures, marker='x', linestyle='-', color='blue', label='Temperature')
-    ax2.set_ylabel('Temperature', color='blue')
-    ax2.tick_params(axis='y', labelcolor='blue')
+    ax2.plot(steps, temperatures, marker='x', linestyle='-', color=colors[1], label='Temp.')
+    ax2.set_ylabel('Temperature', color=colors[1])
+    ax2.tick_params(axis='y', labelcolor=colors[1])
 
-    # Title and grid
-    plt.title(title + 'Energy and Temperature vs. Time Step')
-    ax1.grid(True)
+    ax.plot(steps, kinenergies, marker='o', linestyle='-', color=colors[2], label='Kin. Energy')
+    ax.plot(steps, totenergies, marker='o', linestyle='-', color=colors[3], label='Tot. Energy')
 
-    plt.show()
-
-    # Create figure and first axis
-    plt.figure(figsize=(10, 6))
-    ax1 = plt.gca()  # Get current axis
-    ax2 = ax1.twinx()  # Create another axis that shares the same x-axis
-
-    # Plot energy on the first y-axis
-    ax1.plot(steps, kinenergies, marker='o', linestyle='-', color='red', label='Kinetic Energy')
-    ax1.set_xlabel('Time Step')
-    ax1.set_ylabel('Kinetic Energy', color='red')
-    ax1.tick_params(axis='y', labelcolor='red')
-
-    # Plot temperature on the second y-axis
-    ax2.plot(steps, totenergies, marker='x', linestyle='-', color='blue', label='Total Energy')
-    ax2.set_ylabel('Total Energy', color='blue')
-    ax2.tick_params(axis='y', labelcolor='blue')
-
-    # Title and grid
-    plt.title(title + 'Energy and Temperature vs. Time Step')
-    ax1.grid(True)
-
+    ax.legend(framealpha=.5, scatterpoints=1, numpoints=1)
+    postprocess_style()
+    fig.tight_layout()
+    fig.savefig(save_path)
     plt.show()

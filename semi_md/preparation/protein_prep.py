@@ -89,6 +89,45 @@ def insert_molecule_and_remove_clashes(
     new_top.box_vectors = topology.box_vectors
     return new_top
 
+def minimize_energy(simulation):
+    simulation.context.reinitialize(True)
+    before_state = simulation.context.getState(
+        getEnergy=True, getPositions=True)
+    print(
+        "Before minimization potential Energy is",
+        before_state.getPotentialEnergy())
+
+    simulation.minimizeEnergy(
+        tolerance=openmm_unit.Quantity(
+            value=0.0, unit=openmm_unit.kilojoule_per_mole / (openmm_unit.nano * openmm_unit.meter)
+        )
+    )
+    minimized_state = simulation.context.getState(
+        getPositions=True, getEnergy=True, getForces=True
+    )
+
+    print(
+        "Minimised to",
+        minimized_state.getPotentialEnergy(),
+        "with maximum force",
+        max(
+            np.sqrt(v.x * v.x + v.y * v.y + v.z * v.z) for v in minimized_state.getForces()
+        ),
+        minimized_state.getForces().unit.get_symbol(),
+    )
+
+    minimized_coords = minimized_state.getPositions()
+    return minimized_coords
+
+def remove_all_forces_except_bond_length(system):
+    i = 0
+    while system.getNumForces() > 1:
+        f = system.getForce(i)
+        if f.getName() == "HarmonicBondForce":
+            i += 1
+        else:
+            system.removeForce(i)
+    print("This operation alters the system. Be sure to reload it if necessary.")
 
 if __name__ == '__main__':
     receptor_path = "files/5tbm_prepared.pdb"
@@ -143,9 +182,6 @@ if __name__ == '__main__':
     with open('interchange.json', 'w') as output:
         output.write(interchange.model_dump_json())
 
-    integrator = openmm.VerletIntegrator(
-        1 * openmm_unit.femtosecond,
-    )
 
     with open('system.xml') as input:
         omm_system = openmm.XmlSerializer.deserialize(input.read())
@@ -155,39 +191,29 @@ if __name__ == '__main__':
         omm_top: app.Topology = interchange.to_openmm_topology()
 
     # Combine the topology, system, integrator and initial positions into a simulation
+    integrator = openmm.VerletIntegrator(
+        1 * openmm_unit.femtosecond,
+    )
+    minimization_simulation = interchange.to_openmm_simulation(combine_nonbonded_forces=True,
+                                                  integrator=integrator, )
+    minimize_energy(minimization_simulation)
+    remove_all_forces_except_bond_length(minimization_simulation.system)
+    minimized_coords = minimize_energy(minimization_simulation)
+
+    with open('system.xml') as input:
+        omm_system = openmm.XmlSerializer.deserialize(input.read())
+    with open('interchange.json') as input:
+        interchange: Interchange = Interchange.model_validate_json(input.read())
+        top: Topology = interchange.topology
+        omm_top: app.Topology = interchange.to_openmm_topology()
+    integrator = openmm.VerletIntegrator(
+        1 * openmm_unit.femtosecond,
+    )
     simulation = interchange.to_openmm_simulation(combine_nonbonded_forces=True,
                                                   integrator=integrator, )
-
-    before_state = simulation.context.getState(
-        getEnergy=True, getPositions=True)
-    print(
-        "Before minimization potential Energy is",
-        before_state.getPotentialEnergy())
-
-    simulation.minimizeEnergy(
-        tolerance=openmm_unit.Quantity(
-            value=50.0, unit=openmm_unit.kilojoule_per_mole / (openmm_unit.nano * openmm_unit.meter)
-        )
-    )
-    minimized_state = simulation.context.getState(
-        getPositions=True, getEnergy=True, getForces=True
-    )
-
-    print(
-        "Minimised to",
-        minimized_state.getPotentialEnergy(),
-        "with maximum force",
-        max(
-            np.sqrt(v.x * v.x + v.y * v.y + v.z * v.z) for v in minimized_state.getForces()
-        ),
-        minimized_state.getForces().unit.get_symbol(),
-    )
-
-    minimized_coords = minimized_state.getPositions()
-
     # Assume 'simulation' is your Simulation object
     # and 'minimized_coords' contains the positions from the minimized state
-
+    simulation.context.setPositions(minimized_coords)
     simulation.context.setVelocitiesToTemperature(300 * openmm_unit.kelvin)
     simulation.context.computeVirtualSites()
 

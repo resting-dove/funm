@@ -131,7 +131,15 @@ if __name__ == '__main__':
         errorsA.append(compute_error(sb, exactsA, atol=0, rtol=1, norm=norm))
         errorcA.append(compute_error(cb, exactcA, atol=0, rtol=1, norm=norm))
 
-    j = 1
+    j = 0
+    # Applied to exp(adiag(-Omega^2, I)), which has the union of the two spectra due to similarity
+    ms, bounds = hochbruck_lubich(-max(evals), t**2, n=bound_n)
+    bounds *= exact_norm
+    name = f"HL"
+    plot_store[name + " bounds"] = bounds
+    plot_store[name + " ms"] = ms
+    ax.plot(ms, bounds, label="HL", linestyle="-", c=colors[j])
+    j += 1
     ms, bounds = chen_musco(t ** 2 * min(evals), t ** 2 * max(evals), w=w, n=bound_n, f=func_scalar, center=center,
                             radius=radius)
     name = f"CGMM prio"

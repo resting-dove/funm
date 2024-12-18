@@ -20,5 +20,6 @@ if __name__ == "__main__":
     ax.plot(xs, wkms(xs), color=colors[1], label="2")
     fig.legend()
     postprocess_style()
+    fig.tight_layout()
     fig.savefig("figures/plot_wave_kernels.png")
     plt.show()

@@ -19,6 +19,7 @@ if __name__ == '__main__':
     ax.set_ylabel(r"rel. Error")
     fig.legend()
     postprocess_style()
+    fig.tight_layout()
     plt.savefig(f"relativeErrorsOneStepGS99.png")
     fig.show()
 
@@ -38,5 +39,6 @@ if __name__ == '__main__':
     # ax2.set_ylim(bottom=min(gs99["I11"]), top=min(gs99["I11"]) + max(gs99["Hs"]) - min(gs99["Hs"]))
     fig.legend()
     postprocess_style()
+    fig.tight_layout()
     plt.savefig(f"EnergyConservationOneStepGS99Long.png")
     fig.show()

@@ -26,14 +26,15 @@ def setup_latex():
             "text.usetex": True,
             "pgf.rcfonts": False,
             "axes.unicode_minus": False,
+            "font.size": "11.0"
         }
     )
 
 
 def get_sizes(factor=1):
     """Get textwidth and textheight in inches scaled by factor."""
-    textwidth = 4.9823
-    textheight = 8.2457
+    textwidth = 5.59164
+    textheight = 9.59747
     return factor * textwidth, factor * textheight
 
 

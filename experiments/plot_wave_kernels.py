@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import get_fig_ax, Colors, postprocess_style
-import os
+from utils import get_fig_ax, Colors, postprocess_style, setup_latex
 
 
 def wkms(x):
@@ -13,6 +12,7 @@ def wkmc(x):
 
 
 if __name__ == "__main__":
+    setup_latex()
     fig, ax = get_fig_ax(factor=0.5)
     colors = Colors()
     xs = np.linspace(-10, 100, 5000)
@@ -21,5 +21,4 @@ if __name__ == "__main__":
     fig.legend()
     postprocess_style()
     fig.tight_layout()
-    fig.savefig("figures/plot_wave_kernels.png")
-    plt.show()
+    fig.savefig("figures/plot_wave_kernels")

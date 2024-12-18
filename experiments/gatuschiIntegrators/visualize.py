@@ -1,11 +1,12 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from experiments.utils import get_fig_axs, get_fig_ax, Colors, postprocess_style
+from experiments.utils import get_fig_axs, get_fig_ax, Colors, postprocess_style, setup_latex
 
 if __name__ == '__main__':
+    setup_latex()
     gs99 = np.load("OneStepGS99.npz")
     adaptive = np.load("OneStepGS99_adaptive.npz")
-    fig, ax = get_fig_ax()
+    fig, ax = get_fig_ax(ratio=3)
     colors = Colors()
     eH = np.abs(gs99["Hs"] - adaptive["Hs"]) / gs99["Hs"]
     ax.plot(np.linspace(0, 1000, len(gs99["Hs"])), eH, label=r"$H$", color=colors[0])
@@ -20,11 +21,10 @@ if __name__ == '__main__':
     fig.legend()
     postprocess_style()
     fig.tight_layout()
-    plt.savefig(f"relativeErrorsOneStepGS99.png")
-    fig.show()
+    plt.savefig(f"relativeErrorsOneStepGS99")
 
     long = np.load("OneStepGS99Longer.npz")
-    fig, axs = get_fig_axs(rows=2, cols=1, ratio=8 / 3, sharex=True)
+    fig, axs = get_fig_axs(rows=2, cols=1, ratio=3, sharex=True)
     ax = axs[0]
     ax2 = axs[1]
     colors = Colors()
@@ -37,8 +37,7 @@ if __name__ == '__main__':
     ax2.set_xlabel(r"t")
     ax.set_ylim(bottom=0)
     # ax2.set_ylim(bottom=min(gs99["I11"]), top=min(gs99["I11"]) + max(gs99["Hs"]) - min(gs99["Hs"]))
-    fig.legend()
+    ax2.legend()
     postprocess_style()
     fig.tight_layout()
-    plt.savefig(f"EnergyConservationOneStepGS99Long.png")
-    fig.show()
+    plt.savefig(f"EnergyConservationOneStepGS99Long")

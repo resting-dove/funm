@@ -45,16 +45,15 @@ if __name__ == "__main__":
         state: mm.State = a._calc.context.getState(getEnergy=True, getForces=True, getVelocities=True)
         epot = state.getPotentialEnergy().value_in_unit_system(
             unit.md_unit_system)  # a.get_potential_energy() * eV2kJ_mol
-        ekin = state.getKineticEnergy().value_in_unit_system(unit.md_unit_system)  # a.get_kinetic_energy() * eV2kJ_mol
+        ekin = a.get_kinetic_energy() * eV2kJ_mol
         etot = epot + ekin  # a.get_total_energy() * eV2kJ_mol
-        temp = (2 * state.getKineticEnergy() / (
-                len(a) * 3 * unit.BOLTZMANN_CONSTANT_kB) / unit.AVOGADRO_CONSTANT_NA).value_in_unit_system(
-            unit.md_unit_system)  # a.get_temperature()
+        temp = a.get_temperature()
+
         epots.append(epot)
         ekins.append(ekin)
         etots.append(etot)
         temps.append(temp)
-        print(f'Epot = {epot:.3f}kJ/mol  Ekin = {ekin:.3f}kJ/mol (T={temp:3.0f}K) '
+        print(f'Epot = {epot:.3f}kJ/mol Ekin = {ekin:.3f}kJ/mol (T={temp:3.0f}K) '
               f'Etot = {etot:.3f}kJ/mol')
 
 

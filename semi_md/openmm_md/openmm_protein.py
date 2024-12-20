@@ -1,25 +1,28 @@
+import os
+import subprocess
+
 import ase.units as ase_units
 import mdtraj as md
+import numpy as np
 import openmm.app as app
 import openmm.unit as unit
-
+import openmm as mm
 from semi_md.utilities.md_plotting_helpers import parse_log_file, make_plots
 from semi_md.utilities.read_protein_simulation import read_protein_simulation
 
-# https://github.com/ingcoder/OpenMM-MDSimulation/blob/main/OpenMM_Ligand_Protein_Simulation.ipynb
-
-
+root_path = os.getcwd()
 if __name__ == '__main__':
-    log_file_path = 'openmm_protein.log'
-    n_steps = 400
+    n_steps = 4000
     time_step = 0.1 * unit.femtosecond
-    ase_time_step = time_step.value_in_unit(unit.femtosecond) * ase_units.fs
+    log_file_path = f'artifacts/openmm_protein_{time_step}.log'
+    log_interval = 10
     prod_simulation: app.Simulation
-    prod_simulation, _, _ = read_protein_simulation(time_step)
+    prod_integrator = mm.VerletIntegrator(time_step)
+    prod_simulation, _, _ = read_protein_simulation(time_step, prod_integrator)
 
     # Add a reporter to record the structure every 10 steps
     prod_simulation.reporters.append(app.StateDataReporter(log_file_path,
-                                                           1,  # number of steps between each save
+                                                           log_interval,  # number of steps between each save
                                                            step=True,  # writes step number to each line
                                                            potentialEnergy=True,
                                                            # writes potential energy of the system (KJ/mole)
@@ -27,7 +30,7 @@ if __name__ == '__main__':
                                                            totalEnergy=True,
                                                            temperature=True
                                                            ))
-    dcd_reporter = app.DCDReporter("trajectory.dcd", 10, enforcePeriodicBox=True)
+    dcd_reporter = app.DCDReporter("trajectory.dcd", log_interval, enforcePeriodicBox=True)
     prod_simulation.reporters.append(dcd_reporter)
 
     # Run the simulation
@@ -40,4 +43,11 @@ if __name__ == '__main__':
 
     # Parse the log file
     steps, potenergies, kinenergies, totenergies, temperatures = parse_log_file(log_file_path)
-    make_plots(steps, potenergies, kinenergies, totenergies, temperatures, "OpenMM: ")
+    steps = (np.array(steps) * time_step).value_in_unit(unit.femtosecond)
+    plot_store = {
+        "timestep": str(time_step),
+        "filename": os.path.basename(__file__),
+        "git_commit": subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip(),
+    }
+    np.savez(os.path.join(root_path, "artifacts", "plot_store" + f"_openmm_protein_{time_step}"), **plot_store)
+    make_plots(steps, potenergies, kinenergies, totenergies, temperatures, f"figures/openmm_protein_{time_step}")

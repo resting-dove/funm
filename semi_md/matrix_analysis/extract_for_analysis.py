@@ -1,19 +1,15 @@
-import ase.io
-import ase.units as ase_units
+import mdtraj
 import numpy as np
 import openmm.unit as unit
 import scipy.sparse
-from nanover.omni.ase_omm import ASEOpenMMSimulation
+from openmm.app import PDBFile
 
-from semi_md.ase_md.OmmCalculator import OmmCalculator
-from semi_md.ase_md.unit_helpers import velocity_conversion_factor, ase_unit_system
-from semi_md.computeK import compute_K_with_dict
+from semi_md.openmm_md.SAIntegrator import SemiAnalyticIntegrator
 from semi_md.rotations import get_Rx
 from semi_md.utilities.read_protein_simulation import read_protein_simulation
-from semi_md.ase_md.SemiAnalyticMd import SemiAnalyticMd
 
 
-def semi_analytic_step(self: SemiAnalyticMd, r: np.ndarray, v: np.ndarray):
+def semi_analytic_step(self: SemiAnalyticIntegrator, r: np.ndarray, v: np.ndarray):
     xi = self.M_sqrt @ r.flatten()
     vi = self.M_sqrt @ v.flatten()
     RxLarge, Rx_invLarge = get_Rx(r, self.original_positions, self.openff_topology)
@@ -25,47 +21,31 @@ def semi_analytic_step(self: SemiAnalyticMd, r: np.ndarray, v: np.ndarray):
 
 
 if __name__ == "__main__":
-    n_steps = 400
-    time_step = 1 * unit.femtosecond
-    ase_time_step = time_step.value_in_unit(unit.femtosecond) * ase_units.fs
-    trajectory = ase.io.read('../ase_md/protein.traj', index=':')
-    simulation, openff_forcefield, openff_topology = read_protein_simulation(1 * unit.femtosecond)
-    ase_omm_sim = ASEOpenMMSimulation.from_simulation(simulation)
-    ase_omm_sim.time_step = ase_time_step
-
-    openmm_calculator = OmmCalculator(simulation)
-    atoms = openmm_calculator.generate_atoms()
-    atoms.calc = openmm_calculator
-
-    atoms.set_velocities(simulation.context.getState(getVelocities=True).getVelocities() * velocity_conversion_factor)
-
-    print()
-    vv = SemiAnalyticMd(
-        atoms=atoms,
-        timestep=ase_time_step,
-        trajectory="simpleAnalytic.traj"
+    n_steps = 4000
+    time_step = 0.01 * unit.femtosecond
+    omm_top2 = PDBFile("../preparation/minimized_structure.pdb").getTopology()
+    trajectory: mdtraj.Trajectory = mdtraj.load(
+        "../openmm_md/artifacts/trajectory.dcd", top=mdtraj.Topology.from_openmm(omm_top2)
     )
-    vv.setup_gautschi_integrator(forcefield=openff_forcefield, openff_topology=openff_topology)
+    prod_integrator = SemiAnalyticIntegrator(time_step)
+    prod_simulation, openff_forcefield, openff_topology = read_protein_simulation(time_step, prod_integrator)
+    prod_simulation.integrator.setup(prod_simulation, openff_forcefield, openff_topology, "TwoStepF")
 
-    scipy.sparse.save_npz("proteinK.npz", vv.K)
+    scipy.sparse.save_npz("OpenMM_K.npz", prod_simulation.integrator.K)
 
-    pos = vv.atoms._calc.context.getState(getPositions=True).getPositions(asNumpy=True)
-    K = compute_K_with_dict(pos,
-                            openff_forcefield.get_parameter_handler("Bonds").find_matches(openff_topology, True),
-                            unit.md_unit_system)
-    scipy.sparse.save_npz(f"OpenMM_K.npz", K)
+    state = prod_simulation.context.getState(getPositions=True, getVelocities=True)
+    r = state.getPositions(asNumpy=True)
+    v = state.getVelocities(asNumpy=True)
 
 
     def extract_and_save(step: int):
-        r, v = trajectory[step].get_positions(), trajectory[step].get_velocities()
-        omega2, xi, vi, g_xi, RxLarge = semi_analytic_step(vv, r, v)
-        scipy.sparse.save_npz(f"Omega2_{(step * time_step).real}{time_step.unit._name}.npz", omega2)
-        np.savez(f"vectors_{(step * time_step).real}{time_step.unit._name}.npz", xi=xi, vi=vi, g_xi=g_xi)
-        scipy.sparse.save_npz(f"RxLarge_{(step * time_step).real}{time_step.unit._name}.npz", RxLarge)
+        if step != 0:
+            raise RuntimeError("Later steps not implemented anymore with OpenMM.")
+        omega2, xi, vi, g_xi, RxLarge = semi_analytic_step(prod_simulation.integrator, r, v)
+        scipy.sparse.save_npz(f"OpenMM_Omega2_{(step * time_step).real}{time_step.unit._name}.npz", omega2)
+        np.savez(f"OpenMM_vectors_{(step * time_step).real}{time_step.unit._name}.npz", xi=xi, vi=vi, g_xi=g_xi)
+        scipy.sparse.save_npz(f"OpenMM_RxLarge_{(step * time_step).real}{time_step.unit._name}.npz", RxLarge)
 
 
     step = 0
-    extract_and_save(step)
-
-    step = 400
     extract_and_save(step)

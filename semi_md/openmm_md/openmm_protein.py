@@ -30,16 +30,16 @@ if __name__ == '__main__':
                                                            totalEnergy=True,
                                                            temperature=True
                                                            ))
-    dcd_reporter = app.DCDReporter("trajectory.dcd", log_interval, enforcePeriodicBox=True)
+    dcd_reporter = app.DCDReporter("artifacts/trajectory.dcd", log_interval, enforcePeriodicBox=True)
     prod_simulation.reporters.append(dcd_reporter)
 
     # Run the simulation
     prod_simulation.step(n_steps)
 
-    traj = md.load_dcd('trajectory.dcd', top='../preparation/minimized_structure.pdb')
+    traj = md.load_dcd('artifacts/trajectory.dcd', top='../preparation/minimized_structure.pdb')
     traj.image_molecules(inplace=True)  # This re-wraps or images the molecules
-    traj.save_dcd('trajectory_image.dcd')  # Save the processed trajectory
-    traj.save_pdb('trajectory_image.pdb')
+    traj.save_dcd('artifacts/trajectory_image.dcd')  # Save the processed trajectory
+    traj.save_pdb('artifacts/trajectory_image.pdb')
 
     # Parse the log file
     steps, potenergies, kinenergies, totenergies, temperatures = parse_log_file(log_file_path)
@@ -50,4 +50,4 @@ if __name__ == '__main__':
         "git_commit": subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip(),
     }
     np.savez(os.path.join(root_path, "artifacts", "plot_store" + f"_openmm_protein_{time_step}"), **plot_store)
-    make_plots(steps, potenergies, kinenergies, totenergies, temperatures, f"figures/openmm_protein_{time_step}")
+    make_plots(steps, potenergies, kinenergies, totenergies, temperatures, f"figures/openmm_protein")

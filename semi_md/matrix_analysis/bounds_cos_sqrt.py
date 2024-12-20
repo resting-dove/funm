@@ -1,17 +1,15 @@
 import os
 import subprocess
 
-import numpy as np
-import scipy
 import matplotlib.pyplot as plt
+import numpy as np
 import openmm.unit as unit
-from semi_md.ase_md.unit_helpers import ase_unit_system
-from gautschiIntegrators.gautschiIntegrators.lanczos.LanczosProvider import LanczosProvider
+import scipy
+
+from experiments.utils import get_fig_ax, Colors, postprocess_style, setup_latex
 from gautschiIntegrators.gautschiIntegrators.lanczos.LanczosEvaluator import LanczosWkmEvaluator, \
-    RestartedLanczosWkmEvaluator, \
-    LanczosDiagonalizationEvaluator, RestartedLanczosDiagonalizationEvaluator
+    RestartedLanczosWkmEvaluator
 from pywkm.wkm import wkm
-from experiments.utils import get_fig_ax, Colors, postprocess_style, get_fig_axs
 from src.matfuncb.error_bounds import hochbruck_lubich, chen_musco, afanasjew_post_for_plot
 
 root_path = os.getcwd()
@@ -38,16 +36,16 @@ if __name__ == '__main__':
     plot_store = {}
     plot_store["filename"] = os.path.basename(__file__)
     plot_store["git_commit"] = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
-
-    fig, ax = get_fig_ax()
+    setup_latex()
+    fig, ax = get_fig_ax(factor=0.6)
     colors = Colors()
 
-    A = scipy.sparse.load_npz("Omega2_0.0femtosecond.npz")
-    b = np.load("vectors_0.0femtosecond.npz")["xi"]
+    A = scipy.sparse.load_npz("OpenMM_Omega2_0.0femtosecond.npz")
+    b = np.load("OpenMM_vectors_0.0femtosecond.npz")["xi"]
     N = A.shape[0]
 
     time_step = 10 * unit.femtosecond
-    t = time_step.value_in_unit_system(ase_unit_system)
+    t = time_step.value_in_unit_system(unit.md_unit_system)
 
     evals = scipy.sparse.linalg.eigsh(A, return_eigenvectors=False, which="BE", k=5)
     print("evals: ", evals)
@@ -127,14 +125,14 @@ if __name__ == '__main__':
 
     j = 0
     # Applied to exp(adiag(-Omega^2, I)), which has the union of the two spectra due to similarity
-    ms, bounds = hochbruck_lubich(-max(evals), t, n=bound_n)
+    ms, bounds = hochbruck_lubich(-max(evals), t**2, n=bound_n)
     bounds *= exact_norm
     name = f"HL"
     plot_store[name + " bounds"] = bounds
     plot_store[name + " ms"] = ms
     ax.plot(ms, bounds, label="HL", linestyle="-", c=colors[j])
 
-    j+=1
+    j += 1
     ms, bounds = chen_musco(t ** 2 * min(evals), t ** 2 * max(evals), w=w, n=bound_n, f=func_scalar, center=center,
                             radius=radius)
     name = f"CGMM prio"
@@ -202,5 +200,5 @@ if __name__ == '__main__':
     postprocess_style()
     fig.tight_layout()
     # plt.savefig(os.path.join(root_path, f"figures/bounds_exp_uniform_restarts_{n}.png"))
-    fig.savefig(os.path.join(root_path, f"figures/bounds_cos_sqrt_{norm_name}-norm.png"))
+    fig.savefig(os.path.join(root_path, f"figures/bounds_cos_sqrt_{norm_name}-norm"))
     plt.show()

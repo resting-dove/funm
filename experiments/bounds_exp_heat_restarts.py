@@ -128,6 +128,7 @@ if __name__ == "__main__":
         idx = get_index(final_size, krylov_size)
         name = f"m:{krylov_size}"
         plot_store[name + " errors"] = error_norms
+        plot_store[name + " updates"] = npupdate_norms
         plot_store[name + " idx"] = idx
         line, = axs[j].plot(idx, error_norms, label=name, linestyle="solid", c="black")
         line, = axs[j].plot(idx[1:], npupdate_norms, linestyle="none", c="black", marker=markers[j])
@@ -136,13 +137,13 @@ if __name__ == "__main__":
         beta = np.linalg.norm(u0.flatten())
         (v, V, H, m) = arnoldi(t * A, u0.flatten() / beta, krylov_size + 50, trunc=1)
 
-        ms, bounds = restarted_pre(min(evals), max(evals), w=w, m=krylov_size, center=center,
-                                             radius=radius,
-                                             starts=bound_n // krylov_size + 1, f=func_scalar)
-        name = f"rest pre {krylov_size}"
-        plot_store[name + " bounds"] = bounds
-        plot_store[name + " ms"] = ms
-        axs[j].plot(ms, exact_norm * bounds, linestyle="-", c=colors[i], label="CGMM")
+        # ms, bounds = chen_musco(min(evals), max(evals), w=w, m=krylov_size, center=center,
+        #                                      radius=radius,
+        #                                      starts=bound_n // krylov_size + 1, f=func_scalar)
+        # name = f"rest pre {krylov_size}"
+        # plot_store[name + " bounds"] = bounds
+        # plot_store[name + " ms"] = ms
+        # axs[j].plot(ms, exact_norm * bounds, linestyle="-", c=colors[i], label="CGMM")
 
         i += 1
         ms, bounds = restarted_post_no_kappa(t * A, u0.flatten(), H[:krylov_size, :krylov_size], w=w, center=center,
@@ -181,8 +182,8 @@ if __name__ == "__main__":
         axs[j].set_ylabel(fr"Error $||\cdot||_{norm_name}$")
         axs[j].legend(framealpha=.5, scatterpoints=1, numpoints=1)
 
-    # np.savez(os.path.join(root_path, "artifacts", "plot_store" + f"bounds_exp_heat_{n}_restarts_{norm_name}-norm"),
-    #          **plot_store)
+    np.savez(os.path.join(root_path, "artifacts", "plot_store" + f"bounds_exp_heat_{n}_restarts_{norm_name}-norm"),
+             **plot_store)
 
     fig.suptitle(
         rf"Heat equation, $\Lambda(A)\subset[{min(evals):.1f}, {max(evals):.1f}]$, " + r"$A\in\mathbb{"

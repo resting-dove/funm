@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import scipy
 import numpy as np
-from utils import get_fig_ax, postprocess_style
+from utils import get_fig_ax, postprocess_style, setup_latex
 import os
 
 root_path = os.getcwd()
@@ -21,11 +21,12 @@ if __name__ == "__main__":
     d = bins[1] - bins[0]
     bins = [bins[0] - d] + list(bins) + [bins[-1] + d]
     print((evals <= bins[1]).sum())
-    fig, ax = get_fig_ax(factor=0.6, ratio=21/9)
+    setup_latex()
+    fig, ax = get_fig_ax(factor=0.6, ratio=21 / 9)
 
     ax.hist(evals, bins=bins)
     ax.set_ylabel('Count Eigenvalues')
     postprocess_style()
     fig.tight_layout()
-    fig.savefig(os.path.join(root_path, f"figures/laplacian_{n}_spectrum.png"))
+    fig.savefig(os.path.join(root_path, f"figures/laplacian_{n}_spectrum"))
     fig.show()

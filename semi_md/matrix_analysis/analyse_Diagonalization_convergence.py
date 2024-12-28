@@ -5,12 +5,15 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 from gautschiIntegrators.gautschiIntegrators.lanczos.LanczosProvider import LanczosProvider
-from gautschiIntegrators.gautschiIntegrators.lanczos.LanczosEvaluator import LanczosWkmEvaluator, RestartedLanczosWkmEvaluator, \
+from gautschiIntegrators.gautschiIntegrators.lanczos.LanczosEvaluator import LanczosWkmEvaluator, \
+    RestartedLanczosWkmEvaluator, \
     LanczosDiagonalizationEvaluator, RestartedLanczosDiagonalizationEvaluator
 from pywkm.wkm import wkm
-from experiments.utils import get_fig_ax, Colors, postprocess_style, get_fig_axs
+from experiments.utils import get_fig_ax, Colors, postprocess_style, get_fig_axs, setup_latex
 
 root_path = os.getcwd()
+
+
 def compute_error(x, x_true, rtol, atol):
     e = (x - x_true) / (atol + rtol * np.abs(x_true))
     return np.linalg.norm(e, axis=0) / np.sqrt(e.shape[0])
@@ -28,20 +31,20 @@ if __name__ == '__main__':
     plot_store = {}
     plot_store["filename"] = os.path.basename(__file__)
     plot_store["git_commit"] = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
-
-    fig, axs = get_fig_axs(2, 1, sharex=True)
+    setup_latex()
+    fig, axs = get_fig_axs(2, 1, sharex=True, factor=.6)
     colors = Colors()
 
     n = 200
     rng = np.random.default_rng()
     b = rng.random(n)
     b = b / scipy.linalg.norm(b)
-    for idx, file in enumerate(["randomSparse200_-2.000000.mat", "randomSparse200_-1.000000.mat", "randomSparse200_0.000000.mat",
-                                "randomSparse200_1.000000.mat", "randomSparse200_2.000000.mat", "randomSparse200_3.000000.mat"]):
+    for idx, file in enumerate(
+            ["randomSparse200_-2.000000.mat", "randomSparse200_-1.000000.mat", "randomSparse200_0.000000.mat",
+             "randomSparse200_1.000000.mat", "randomSparse200_2.000000.mat", "randomSparse200_3.000000.mat"]):
         i = idx - 2
         mat_dict = scipy.io.loadmat("matlab_files/" + file)
         print(f"Sum of imaginary parts {np.sum(np.imag(mat_dict['A']))}")
-
 
         A = scipy.sparse.csr_array(np.real(mat_dict["A"]))
         print(
@@ -98,13 +101,12 @@ if __name__ == '__main__':
     axs[1].set_ylabel(r"rel. error $||\cdot||_{2}$")
     axs[0].legend(framealpha=.5, scatterpoints=1, numpoints=1)
     np.savez(
-    os.path.join(root_path, "artifacts", "plot_store" + f"_analyse_Diagonalization_convergence"),
-    **plot_store)
+        os.path.join(root_path, "artifacts", "plot_store" + f"_analyse_Diagonalization_convergence"),
+        **plot_store)
 
     # fig.suptitle(
     #     rf"${func_scalar.__name__}(A)b$, $\Lambda(A)\subset[{min(evals):.1f}, {max(evals):.1f}]$, " + r"$A\in\mathbb{R}^{" + rf"{N}\times{N}" + "}$")
     postprocess_style()
     fig.tight_layout()
     # plt.savefig(os.path.join(root_path, f"figures/bounds_exp_uniform_restarts_{n}.png"))
-    fig.savefig(os.path.join(root_path, f"figures/analyse_Diagonalization_convergence.png"))
-    plt.show()
+    fig.savefig(os.path.join(root_path, f"figures/analyse_Diagonalization_convergence"))

@@ -27,8 +27,7 @@ def compute_K(positions: np.array, bonds: dict, openff_topology: Topology, units
                     .value_in_unit_system(units)
                 difference = positions[i] - positions[j]
                 distance = np.linalg.norm(difference)
-                K_small = k * distance ** (-2) \
-                          * (-1 + (distance - r0) * distance ** (-1)) \
+                K_small = k * distance ** (-3) * (- r0) \
                           * np.outer(difference, difference)
                 add_for_diag = k * -(distance - r0) * distance ** (-1)
                 K_small += np.diag(np.ones(3) * add_for_diag)
@@ -54,13 +53,12 @@ def compute_K_with_dict(positions: np.array, bonds_dict: dict, units: UnitSystem
     index = 0
     for (i, j), bond in bonds_dict.items():
         k = bond.parameter_type.k.to_openmm() \
-                .value_in_unit_system(units) / 2
+            .value_in_unit_system(units)
         r0 = bond.parameter_type.length.to_openmm() \
             .value_in_unit_system(units)
         difference = positions[i] - positions[j]
         distance = np.linalg.norm(difference)
-        K_small = k * distance ** (-2) \
-                  * (-1 + (distance - r0) * distance ** (-1)) \
+        K_small = k * distance ** (-3) * (- r0) \
                   * np.outer(difference, difference)
         add_for_diag = k * -(distance - r0) * distance ** (-1)
         K_small += np.diag(np.ones(3) * add_for_diag)
@@ -104,12 +102,11 @@ def compute_K_with_force(positions: np.array, force: openmm.HarmonicBondForce, u
     index = 0
     for bond_index in range(num_bonds):
         i, j, r0, k = force.getBondParameters(bond_index)
-        k = k.value_in_unit_system(units) / 2
+        k = k.value_in_unit_system(units)
         r0 = r0.value_in_unit_system(units)
         difference = positions[i] - positions[j]
         distance = np.linalg.norm(difference)
-        K_small = k * distance ** (-2) \
-                  * (-1 + (distance - r0) * distance ** (-1)) \
+        K_small = k * distance ** (-3) * (- r0) \
                   * np.outer(difference, difference)
         add_for_diag = k * -(distance - r0) * distance ** (-1)
         K_small += np.diag(np.ones(3) * add_for_diag)
@@ -158,8 +155,8 @@ def compute_K_v2(r_ini, bonds, topology):
                          .to_openmm() ** 2
                 l = -4 * k * Quantity(np.outer(RiRj, RiRj), RiRj.unit ** 2)
                 r = -2 * k * (rij - r0) * np.eye(3)
-                K[i * 3: (i + 1) * 3, j * 3: (j + 1) * 3] = l + r
-                K[j * 3: (j + 1) * 3, i * 3: (i + 1) * 3] = l + r
+                K[i * 3: (i + 1) * 3, j * 3: (j + 1) * 3] += l + r
+                K[j * 3: (j + 1) * 3, i * 3: (i + 1) * 3] += l + r
                 K[i * 3: (i + 1) * 3, i * 3: (i + 1) * 3] -= l + r
                 K[j * 3: (j + 1) * 3, j * 3: (j + 1) * 3] -= l + r
     return K
@@ -182,8 +179,8 @@ def compute_K_v2_with_force(r_ini, force: openmm.HarmonicBondForce, unit_system:
         r0 = r0.in_unit_system(unit_system) ** 2
         l = -4 * k * Quantity(np.outer(RiRj, RiRj), RiRj.unit ** 2)
         r = -2 * k * (rij - r0) * np.eye(3)
-        K[i * 3: (i + 1) * 3, j * 3: (j + 1) * 3] = l + r
-        K[j * 3: (j + 1) * 3, i * 3: (i + 1) * 3] = l + r
+        K[i * 3: (i + 1) * 3, j * 3: (j + 1) * 3] = +l + r
+        K[j * 3: (j + 1) * 3, i * 3: (i + 1) * 3] = +l + r
         K[i * 3: (i + 1) * 3, i * 3: (i + 1) * 3] -= l + r
         K[j * 3: (j + 1) * 3, j * 3: (j + 1) * 3] -= l + r
     return K

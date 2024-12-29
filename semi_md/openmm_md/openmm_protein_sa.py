@@ -7,26 +7,27 @@ import openmm.app as app
 import openmm.unit as unit
 
 from gautschiIntegrators.gautschiIntegrators.lanczos.LanczosEvaluator import LanczosWkmEvaluator, \
-    LanczosDiagonalizationEvaluator
+    LanczosDiagonalizationEvaluator, RestartedLanczosWkmEvaluator, AdaptiveRestartedLanczosWkmEvaluator
 from semi_md.utilities.md_plotting_helpers import parse_log_file, make_plots
 from semi_md.utilities.read_protein_simulation import read_protein_simulation
-from semi_md.openmm_md.SAIntegrator import SemiAnalyticIntegrator
+from semi_md.openmm_md.SAIntegrator import SemiAnalyticIntegrator, WorkReporter
 
 # https://github.com/ingcoder/OpenMM-MDSimulation/blob/main/OpenMM_Ligand_Protein_Simulation.ipynb
 
 root_path = os.getcwd()
 if __name__ == '__main__':
-    n_steps = 200
+    n_steps = 40
     time_step = 1 * unit.femtosecond
-    name = f"OSGS99_{str(time_step).replace(" ", "")}_LaDi_80"
+    name = f"OSGS99_{str(time_step).replace(" ", "")}_RLaWkm_4"
     log_file_path = f'artifacts/openmm_protein_{name}.log'
     log_interval = 1
     prod_simulation: app.Simulation
     prod_integrator = SemiAnalyticIntegrator(time_step)
     prod_simulation, openff_forcefield, topology = read_protein_simulation(time_step, prod_integrator)
     prod_simulation.integrator.setup(prod_simulation, openff_forcefield, topology, "OneStepGS99")
-    evaluator = LanczosDiagonalizationEvaluator(krylov_size=80)  # LanczosWkmEvaluator(krylov_size=80)
-    prod_simulation.integrator.evaluator = evaluator
+    evaluator = AdaptiveRestartedLanczosWkmEvaluator(krylov_size=4, max_restarts=15,
+                                                     arnoldi_acc=1e-20)  # LanczosWkmEvaluator(krylov_size=80)
+    prod_simulation.integrator.integrator.evaluator = evaluator
 
     prod_simulation.reporters.append(app.StateDataReporter(log_file_path,
                                                            log_interval,  # number of steps between each save
@@ -39,6 +40,7 @@ if __name__ == '__main__':
                                                            ))
     dcd_reporter = app.DCDReporter(f"artifacts/{name}_trajectory.dcd", log_interval, enforcePeriodicBox=False)
     prod_simulation.reporters.append(dcd_reporter)
+    prod_simulation.reporters.append(WorkReporter(file=f"artifacts/work_{name}.log", reportInterval=log_interval))
 
     # Run the simulation
     prod_simulation.step(n_steps)

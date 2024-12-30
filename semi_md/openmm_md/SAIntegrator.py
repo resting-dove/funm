@@ -82,7 +82,8 @@ class SemiAnalyticIntegrator(mm.CustomIntegrator):
         x = (self.M_sqrt_inv @ xi).reshape((-1, 3))
         RxLarge, Rx_invLarge = get_Rx(x, self.original_positions, self.openff_topology)
         self.simulation.context.setPositions(x * r.unit)
-        f = self.simulation.context.getState(getForces=True, groups=0b100, enforcePeriodicBox=False).getForces(True)
+        f = self.simulation.context.getState(getForces=True, groups=0b1111111100, enforcePeriodicBox=False).getForces(
+            True)
         g = self.M_sqrt_inv @ (f.flatten() + RxLarge @ self.K @ self.original_positions.flatten())
         self.simulation.context.setPositions(r)
         return g

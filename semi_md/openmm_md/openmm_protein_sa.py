@@ -16,17 +16,16 @@ from semi_md.openmm_md.SAIntegrator import SemiAnalyticIntegrator, WorkReporter
 
 root_path = os.getcwd()
 if __name__ == '__main__':
-    n_steps = 40
-    time_step = 1 * unit.femtosecond
-    name = f"OSGS99_{str(time_step).replace(" ", "")}_RLaWkm_4"
+    n_steps = 20
+    time_step = 2 * unit.femtosecond
+    name = f"OSGS99_{str(time_step).replace(" ", "")}_ALaWkm_4"
     log_file_path = f'artifacts/openmm_protein_{name}.log'
     log_interval = 1
     prod_simulation: app.Simulation
     prod_integrator = SemiAnalyticIntegrator(time_step)
     prod_simulation, openff_forcefield, topology = read_protein_simulation(time_step, prod_integrator)
     prod_simulation.integrator.setup(prod_simulation, openff_forcefield, topology, "OneStepGS99")
-    evaluator = AdaptiveRestartedLanczosWkmEvaluator(krylov_size=4, max_restarts=15,
-                                                     arnoldi_acc=1e-20)  # LanczosWkmEvaluator(krylov_size=80)
+    evaluator = AdaptiveRestartedLanczosWkmEvaluator(krylov_size=4, max_restarts=20, arnoldi_acc=1e-20)
     prod_simulation.integrator.integrator.evaluator = evaluator
 
     prod_simulation.reporters.append(app.StateDataReporter(log_file_path,
@@ -69,4 +68,4 @@ if __name__ == '__main__':
         "git_commit": subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip(),
     }
     np.savez(os.path.join(root_path, "artifacts", "plot_store" + f"_openmm_protein_{name}"), **plot_store)
-    make_plots(steps, potenergies, kinenergies, totenergies, temperatures, f"openmm_protein_{name}")
+    make_plots(steps, potenergies, kinenergies, totenergies, temperatures, f"figures/openmm_protein_{name}".replace(".", ""))

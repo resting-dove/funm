@@ -152,15 +152,15 @@ if __name__ == "__main__":
         name = f"rest post nk {krylov_size}"
         plot_store[name + " bounds"] = bounds
         plot_store[name + " ms"] = ms
-        axs[j].plot(ms, bounds, linestyle=":", c=colors[i])
+        axs[j].plot(ms, bounds, linestyle=":", label="CGMM", c=colors[i])
 
-        ms, bounds = restarted_post(H[:krylov_size, :krylov_size], w=w, starts=bound_n // krylov_size + 1,
-                                    f=func_scalar,
-                                    fix_0_eval=True)
-        name = f"rest post {krylov_size}"
-        plot_store[name + " bounds"] = bounds
-        plot_store[name + " ms"] = ms
-        axs[j].plot(ms, exact_norm * bounds, label="CGMM", linestyle="--", c=colors[i])
+        # ms, bounds = restarted_post(H[:krylov_size, :krylov_size], w=w, starts=bound_n // krylov_size + 1,
+        #                             f=func_scalar,
+        #                             fix_0_eval=False)
+        # name = f"rest post {krylov_size}"
+        # plot_store[name + " bounds"] = bounds
+        # plot_store[name + " ms"] = ms
+        # axs[j].plot(ms, exact_norm * bounds, label="CGMM", linestyle="--", c=colors[i])
 
         i += 1
         HH, v = restarted_lanczos(t * A, u0.flatten() / beta, krylov_size=krylov_size,

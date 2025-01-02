@@ -302,14 +302,15 @@ def get_determinant_tridiag(T, shift=0.0, return_all=False):
     else:
         return np.array(f)
 
+
 def get_det_swz_tridiag(T, w=0.0, z=0.0, return_all=False):
     n = T.shape[0]
     assert n > 1
     # f3 = 0  # f_{n-3}
     num, den = [1], [1]
     f = [1]
-    num.append(T[0,0] - w)
-    den.append(T[0,0] - z)
+    num.append(T[0, 0] - w)
+    den.append(T[0, 0] - z)
     f.append(num[-1] / den[-1])
     for i in range(1, n):
         a_w, a_z, b, c = T[i, i] - w, T[i, i] - z, T[i - 1, i], T[i, i - 1]
@@ -398,8 +399,9 @@ def restarted_post_no_kappa(A, b, T_small: np.array, w: float, center: float, ra
     a2c = lambda theta: center + radius * (np.cos(theta) + 1j * np.sin(theta))
     dr = lambda theta: np.abs(radius * (-np.sin(theta) + 1j * np.cos(theta)))
     F = lambda theta: np.abs(f(a2c(theta)))
-    H_w_z = lambda theta: bound_h_w_z(w, a2c(theta), sm_eval, la_eval)
-    Dets = lambda theta: np.abs(get_det_swz_tridiag(T_small, w, a2c(theta))) ** rs
+    # H_w_z = lambda theta: bound_h_w_z(w, a2c(theta), sm_eval, la_eval)
+    H_w_z = lambda theta: 1
+    Dets = lambda theta: np.abs(get_det_swz_tridiag(T_small, w, a2c(theta))) ** (rs + 1)
     integrand = lambda theta: F(theta) * H_w_z(theta) * Dets(theta) * dr(theta)
     integral, abserr = scipy.integrate.quad_vec(integrand, 0, 2 * np.pi)
     if np.any(abserr > integral):
@@ -424,8 +426,9 @@ def restarted_post(T_small: np.array, w: float, starts=1, f=np.exp, fix_0_eval=T
     a2c = lambda theta: c + r * (np.cos(theta) + 1j * np.sin(theta))
     dr = lambda theta: np.abs(r * (-np.sin(theta) + 1j * np.cos(theta)))
     F = lambda theta: np.abs(f(a2c(theta)))
-    H_w_z = lambda theta: bound_h_w_z(w, a2c(theta), sm_eval, la_eval)
-    Dets = lambda theta: np.abs(get_det_swz_tridiag(T_small, w, a2c(theta))) ** starts_ra
+    # H_w_z = lambda theta: bound_h_w_z(w, a2c(theta), sm_eval, la_eval)
+    H_w_z = lambda theta: 1
+    Dets = lambda theta: np.abs(get_det_swz_tridiag(T_small, w, a2c(theta))) ** (starts_ra + 1)
     integrand = lambda theta: F(theta) * H_w_z(theta) * Dets(theta) * dr(theta)
     integral, abserr = scipy.integrate.quad_vec(integrand, 0, 2 * np.pi)
     if np.any(abserr > integral):

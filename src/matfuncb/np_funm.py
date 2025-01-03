@@ -77,8 +77,7 @@ def funm_krylov_v2(A, b: np.array, param, matfunc=scipy.linalg.expm, calculate_e
 
 def lanczos_method(A, b: np.array, matfunc=scipy.sparse.linalg.expm, krylov_size: int = np.inf, *, max_starts: int = 1,
                    stopping_acc=1e-10, estimate_at: int = None, arnoldi_acc=1e-10, stopping_decay=0.05):
-    """The symmetric variant of the function above. Due to symmetry the matrix H will be tridiagonal, which might
-    simplify things considerably.
+    """The symmetric variant of the function above.
 
     :param A: symmetric matrix.
     :param b: vector.

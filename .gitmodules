@@ -1,6 +1,3 @@
 [submodule "gautschiIntegrators"]
 	path = gautschiIntegrators
 	url = git@github.com:resting-dove/gautschiIntegrators.git
-[submodule "matlab_integration/wkm"]
-	path = matlab_integration/wkm
-	url = https://github.com/nadukandi/wkm.git

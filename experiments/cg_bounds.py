@@ -3,7 +3,7 @@ import scipy
 import os
 import numpy as np
 import subprocess
-from utils import get_fig_ax, Colors, postprocess_style
+from utils import get_fig_ax, Colors, postprocess_style, setup_latex
 from src.matfuncb.error_bounds import get_cg_errors, get_cg_bound, get_restarted_cg_errors, get_restarted_cg_bound, \
     setup_circle_and_kappa
 
@@ -16,6 +16,7 @@ def prepare_starting_vector2(evecs, n: int):
 
 
 if __name__ == "__main__":
+    setup_latex()
     plot_store = {}
     plot_store["filename"] = os.path.basename(__file__)
     plot_store["git_commit"] = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
@@ -24,7 +25,7 @@ if __name__ == "__main__":
     N = n ** 3  # Total number of interior points
     h = 1
     rng = np.random.default_rng(33)
-    evals = 400 * (rng.random((N)) - 1)
+    evals = -400 * (rng.random((N)) - 1)
     A = scipy.sparse.dia_array(([evals], [0]), shape=(N, N))
     t = 1
     print("evals gotten")
@@ -39,7 +40,7 @@ if __name__ == "__main__":
 
 
     def A_norm(x):
-        return np.sqrt(x.T @ -A @ x)
+        return np.sqrt(x.T @ A @ x)
 
 
     u0 = u0 / A_norm(u0)
@@ -53,6 +54,7 @@ if __name__ == "__main__":
     name = f"m:infty"
     plot_store[name + " errors"] = errors
     plot_store[name + " idx"] = idx
+    plot_store["evals"] = evals
     plt.plot(idx, errors, linestyle='-', color="black", label=rf"m:$\infty$")
     bottom = min(errors[errors > 0])
 
@@ -80,10 +82,9 @@ if __name__ == "__main__":
     ax.set_yscale("log")
     ax.set_ylim(bottom=bottom / 10, top=10)
     ax.set_xlabel("Steps")
-    ax.set_ylabel(r"Error $||\cdot||_A$")
+    # ax.set_ylabel(r"Error $||\cdot||_A$")
     ax.legend(framealpha=.5, scatterpoints=1, numpoints=1)
     postprocess_style()
     fig.tight_layout()
-    # plt.savefig(os.path.join(root_path, f"figures/cg_bounds.png"))
-    fig.savefig(os.path.join(root_path, f"figures/cg_bounds.png"))
+    fig.savefig(os.path.join(root_path, f"figures/cg_bounds"))
     plt.show()

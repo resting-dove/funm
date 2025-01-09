@@ -166,7 +166,7 @@ if __name__ == "__main__":
         HH, v = restarted_lanczos(t * A, u0.flatten() / beta, krylov_size=krylov_size,
                                   max_starts=bound_n // krylov_size + 1)
         ms, bounds = afanasjew_post_for_plot(HH.todense(), v, t * A, krylov_size, starts=bound_n // krylov_size,
-                                             f=func_dense)
+                                             f=func_dense, norm=norm)
         name = f"Afanasjew 1 {krylov_size}"
         plot_store[name + " bounds"] = bounds[0, :]
         plot_store[name + " ms"] = ms

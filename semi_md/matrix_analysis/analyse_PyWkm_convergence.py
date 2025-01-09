@@ -57,7 +57,7 @@ if __name__ == '__main__':
         exactsA = fsA @ b
         exactcA = fcA @ b
 
-        ks = np.arange(1, 200, 8)
+        ks = np.arange(1, 100, 8)
         errorsA = []
         rerrorsA = []
         errorcA = []
@@ -72,7 +72,7 @@ if __name__ == '__main__':
             errorcA.append(compute_error(cb, exactcA, atol=0, rtol=1))
         rks = []
         for k in [10]:  # np.arange(1, 50, 10):
-            rs = np.arange(200 // k)
+            rs = np.arange(100 // k)
             for r in rs:
                 rks.append(r * k + k)
                 # rlanczos = RestartedLanczosDiagonalizationEvaluator(krylov_size=k, max_restarts=r)
@@ -94,6 +94,9 @@ if __name__ == '__main__':
         line, = axs[1].plot(ks, errorcA, label=f"10^{i}", c=colors[idx])
         axs[0].plot(rks, rerrorsA, linestyle=":", c=colors[idx])
         axs[1].plot(rks, rerrorcA, linestyle=":", c=colors[idx])
+
+        axs[0].plot(rks[-1] + 10, mat_dict["condc"] * np.finfo(np.float64).eps, linestyle=None, c=colors.get(idx, False), marker="x")
+        axs[1].plot(rks[-1] + 10, mat_dict["conds"] * np.finfo(np.float64).eps, linestyle=None, c=colors.get(idx, False), marker="x")
 
     axs[0].set_yscale("log")
     axs[1].set_yscale("log")

@@ -21,7 +21,7 @@ if __name__ == '__main__':
     ax.set_yscale("log")
     ax.set_ylim(bottom=np.finfo(np.float64).eps / 1000)
     ax.set_xlabel("Lanczos iterations")
-    ax.set_ylabel(r"Error $||\cdot||_A$")
+    # ax.set_ylabel(r"Error $||\cdot||_A$")
     ax.legend(framealpha=.5, scatterpoints=1, numpoints=1)
     postprocess_style()
     fig.tight_layout()

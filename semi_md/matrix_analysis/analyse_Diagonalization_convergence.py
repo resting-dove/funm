@@ -97,8 +97,8 @@ if __name__ == '__main__':
     axs[1].set_yscale("log")
     # ax.set_ylim(bottom=np.finfo(evals[0].dtype).eps / 1000, top=10000)
     axs[1].set_xlabel("Lanczos iterations")
-    axs[0].set_ylabel(r"rel. error $||\cdot||_{2}$")
-    axs[1].set_ylabel(r"rel. error $||\cdot||_{2}$")
+    # axs[0].set_ylabel(r"rel. error $||\cdot||_{2}$")
+    # axs[1].set_ylabel(r"rel. error $||\cdot||_{2}$")
     axs[0].legend(framealpha=.5, scatterpoints=1, numpoints=1)
     np.savez(
         os.path.join(root_path, "artifacts", "plot_store" + f"_analyse_Diagonalization_convergence"),

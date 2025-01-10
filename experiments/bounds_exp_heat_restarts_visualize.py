@@ -20,10 +20,10 @@ if __name__ == '__main__':
                         marker="^")
 
     i = 2
-    axs[0].plot(plot_store["rest post nk 5" + " ms"], plot_store["rest post nk 5" + " bounds"], linestyle=":",
-                c=colors[i])
-    axs[1].plot(plot_store["rest post nk 20" + " ms"], plot_store["rest post nk 20" + " bounds"], linestyle=":",
-                c=colors[i])
+    axs[0].plot(plot_store["rest post nk 5" + " ms"], plot_store["rest post nk 5" + " bounds"], label="CGMM",
+                linestyle=":", c=colors[i])
+    axs[1].plot(plot_store["rest post nk 20" + " ms"], plot_store["rest post nk 20" + " bounds"], label="CGMM",
+                linestyle=":", c=colors[i])
 
     i += 1
     axs[0].plot(plot_store["Afanasjew 1 5" + " ms"], plot_store["Afanasjew 1 5" + " bounds"], label="AEEG 1",

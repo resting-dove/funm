@@ -37,7 +37,7 @@ if __name__ == '__main__':
     plot_store["filename"] = os.path.basename(__file__)
     plot_store["git_commit"] = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
     setup_latex()
-    fig, ax = get_fig_ax(factor=0.6)
+    fig, ax = get_fig_ax(factor=1)
     colors = Colors()
 
     A = scipy.sparse.load_npz("OpenMM_Omega2_0.0femtosecond.npz")
@@ -60,7 +60,7 @@ if __name__ == '__main__':
     center, w = 0, min(-0.1, t ** 2 * 2 * min(evals))  # max(evals), min(-0.1, t ** 2 * 2 * min(evals))
     radius = max(evals) * t ** 2 - w  # np.abs(center - w)
     bound_n = 40
-    norm_name = "A-wI"
+    norm_name = "2"
     apply_err0 = False
     exact_n = 2000
 
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     j = 0
     # Applied to exp(adiag(-Omega^2, I)), which has the union of the two spectra due to similarity
     ms, bounds = hochbruck_lubich(-max(evals), t**2, n=bound_n)
-    bounds *= exact_norm
+    bounds = bounds / exact_norm  # to make it relative
     name = f"HL"
     plot_store[name + " bounds"] = bounds
     plot_store[name + " ms"] = ms
@@ -135,10 +135,11 @@ if __name__ == '__main__':
     j += 1
     ms, bounds = chen_musco(t ** 2 * min(evals), t ** 2 * max(evals), w=w, n=bound_n, f=func_scalar, center=center,
                             radius=radius)
+    bounds = bounds  # This bound is already relative
     name = f"CGMM prio"
     plot_store[name + " bounds"] = bounds
     plot_store[name + " ms"] = ms
-    ax.plot(ms, exact_norm * bounds, label="CGMM", linestyle="-", c=colors[j])
+    ax.plot(ms, bounds, label="CGMM", linestyle="-", c=colors[j])
     j += 1
 
     prev = 0
@@ -169,7 +170,7 @@ if __name__ == '__main__':
         ms, bounds = afanasjew_post_for_plot(rlanczos.rlanczos.T, rlanczos.rlanczos.v_next, t ** 2 * A, k,
                                              starts=r,
                                              f=func_dense)
-        bounds *= beta * exact_norm
+        bounds = bounds * beta / exact_norm
         name = f"Afanasjew 1 {k}"
         plot_store[name + " bounds"] = bounds[0, :]
         plot_store[name + " ms"] = ms
@@ -189,7 +190,7 @@ if __name__ == '__main__':
     ax.set_yscale("log")
     ax.set_ylim(bottom=np.finfo(evals[0].dtype).eps / 1000, top=500000)
     ax.set_xlabel("Lanczos iterations")
-    ax.set_ylabel(r"rel. error $||\cdot||_{" + norm_name + "}$")
+    # ax.set_ylabel(r"rel. error $||\cdot||_{" + norm_name + "}$")
     ax.legend(framealpha=.5, scatterpoints=1, numpoints=1)
     np.savez(
         os.path.join(root_path, "artifacts", "plot_store" + f"_bounds_cos_sqrt_{norm_name}-norm"),

@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 import scipy
 import os
 import subprocess
@@ -17,7 +18,8 @@ def get_index(final_size: int, krylov_size: int) -> list:
 
 
 def prepare_starting_vector2(evecs, n: int, norm=scipy.linalg.norm):
-    evecs = np.random.random((n ** 3, 1))
+    rng = np.random.default_rng(33)
+    evecs = rng.random((n ** 3, 1))
     return (evecs / norm(evecs))
 
 

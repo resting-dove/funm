@@ -194,32 +194,49 @@ def setup_circle_and_kappa(sm_eval: float, la_eval: float, w: float, center=None
     return center, radius, kappa
 
 
-def chen_musco_no_kappa(A, b, sm_eval: float, la_eval: float, w: float, n: int, S: list, f=np.exp, *, center=None,
-                        radius=None, norm=scipy.linalg.norm):
+def chen_musco_no_kappa(A, b, sm_eval: float, la_eval: float, w: float, n: int, f=np.exp, *, center=None, radius=None, norm=scipy.linalg.norm):
     """
-    A theoretical error bound for the Lanczos approximation of f(A).
-    This makes use of actual step m errors of the CG method.
+    Investigate an a priori error bound for Lanczos approximation of f(A).
+    Basically shift to the system (A-wI) and use a linear system error.
 
-    Source: Theorem 2.6 of T. Chen, A. Greenbaum, C. Musco, and C. Musco,
+    Source: Corrolary 3.3 of T. Chen, A. Greenbaum, C. Musco, and C. Musco,
     “Error Bounds for Lanczos-Based Matrix Function Approximation,”
     SIAM J. Matrix Anal. Appl., vol. 43, no. 2, pp. 787–811, Jun. 2022, doi: 10.1137/21M1427784.
     """
-    assert len(S) == 2  # For now just allow one interval [a,b]
-    m = np.arange(n + 1)
+    m = np.arange(1, n)
     center, radius, kappa = setup_circle_and_kappa(sm_eval, la_eval, w, center, radius)
-
+    integral_part = np.abs(radius) * np.max(
+        np.abs(f(get_points_on_circle(center, radius, 20))))
     cg_bound = get_cg_errors(A, w, b, n, norm=norm)
-
-    a2c = lambda theta: center + radius * (np.cos(theta) + 1j * np.sin(theta))
-    dr = lambda theta: np.abs(radius * (-np.sin(theta) + 1j * np.cos(theta)))
-    F = lambda theta: np.abs(f(a2c(theta)))
-    H_w_z = lambda theta: bound_h_w_z(w, a2c(theta), S[0], S[1])
-    integrand = lambda theta: F(theta) * dr(theta)  # * H_w_z(theta) ** (m + 1)  # this is 1 anyway
-    integral, abserr = scipy.integrate.quad(integrand, 0, 2 * np.pi)
-    if abserr > integral:
-        print(f"integral: {integral}, abserr: {abserr}")
-    result = integral / 2 / np.pi * cg_bound
+    result = integral_part * cg_bound
     return m, result
+
+# def chen_musco_no_kappa(A, b, sm_eval: float, la_eval: float, w: float, n: int, S: list, f=np.exp, *, center=None,
+#                         radius=None, norm=scipy.linalg.norm):
+#     """
+#     A theoretical error bound for the Lanczos approximation of f(A).
+#     This makes use of actual step m errors of the CG method.
+#
+#     Source: Theorem 2.6 of T. Chen, A. Greenbaum, C. Musco, and C. Musco,
+#     “Error Bounds for Lanczos-Based Matrix Function Approximation,”
+#     SIAM J. Matrix Anal. Appl., vol. 43, no. 2, pp. 787–811, Jun. 2022, doi: 10.1137/21M1427784.
+#     """
+#     assert len(S) == 2  # For now just allow one interval [a,b]
+#     m = np.arange(n + 1)
+#     center, radius, kappa = setup_circle_and_kappa(sm_eval, la_eval, w, center, radius)
+#
+#     cg_bound = get_cg_errors(A, w, b, n, norm=norm)
+#
+#     a2c = lambda theta: center + radius * (np.cos(theta) + 1j * np.sin(theta))
+#     dr = lambda theta: np.abs(radius * (-np.sin(theta) + 1j * np.cos(theta)))
+#     F = lambda theta: np.abs(f(a2c(theta)))
+#     H_w_z = lambda theta: bound_h_w_z(w, a2c(theta), S[0], S[1])
+#     integrand = lambda theta: F(theta) * dr(theta)  # * H_w_z(theta) ** (m + 1)  # this is 1 anyway
+#     integral, abserr = scipy.integrate.quad(integrand, 0, 2 * np.pi)
+#     if abserr > integral:
+#         print(f"integral: {integral}, abserr: {abserr}")
+#     result = integral / 2 / np.pi * cg_bound
+#     return m, result
 
 
 def get_cg_bound(kappa, m):
@@ -401,7 +418,7 @@ def restarted_post_no_kappa(A, b, T_small: np.array, w: float, center: float, ra
     F = lambda theta: np.abs(f(a2c(theta)))
     # H_w_z = lambda theta: bound_h_w_z(w, a2c(theta), sm_eval, la_eval)
     H_w_z = lambda theta: 1
-    Dets = lambda theta: np.abs(get_det_swz_tridiag(T_small, w, a2c(theta))) ** (rs + 1)
+    Dets = lambda theta: np.abs(get_det_swz_tridiag(T_small, w, a2c(theta))) ** (rs)
     integrand = lambda theta: F(theta) * H_w_z(theta) * Dets(theta) * dr(theta)
     integral, abserr = scipy.integrate.quad_vec(integrand, 0, 2 * np.pi)
     if np.any(abserr > integral):

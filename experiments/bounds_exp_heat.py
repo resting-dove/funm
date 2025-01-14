@@ -112,8 +112,8 @@ if __name__ == "__main__":
     plot_store[name + " ms"] = ms
     ax.plot(ms, exact_norm * bounds, label="CGMM", linestyle="-", c=colors[i])
 
-    ms, bounds = chen_musco_no_kappa(t * A, u0.flatten(), min(evals), max(evals), w=w, n=bound_n, f=func_scalar,
-                                     S=[min(evals), max(evals)], center=center, radius=radius, norm=norm)
+    ms, bounds = chen_musco_no_kappa(t * A, u0.flatten(), min(evals), max(evals), w=w, n=bound_n, f=func_scalar, center=center,
+                            radius=radius, norm=norm)
     name = f"CGMM prio nk"
     plot_store[name + " bounds"] = bounds
     plot_store[name + " ms"] = ms

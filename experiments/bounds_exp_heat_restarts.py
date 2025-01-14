@@ -62,6 +62,7 @@ if __name__ == "__main__":
     A = 1 / h ** 2 * lap.tosparse()
     t = 0.1
     evals = t / h ** 2 * lap.eigenvalues(N)
+    plot_store["evals"] = (min(evals), max(evals))
     print("evals gotten")
 
 
@@ -82,7 +83,7 @@ if __name__ == "__main__":
     center, w = min(evals), 0
     radius = np.abs(center - w)
     bound_n = 200
-    norm_name = "A"
+    norm_name = "2"
     apply_err0 = True
 
     if f"evecs_heat_{n}_{t}.npy" in os.listdir(os.path.join(root_path, "precalculated")):
@@ -137,14 +138,6 @@ if __name__ == "__main__":
         beta = np.linalg.norm(u0.flatten())
         (v, V, H, m) = arnoldi(t * A, u0.flatten() / beta, krylov_size + 50, trunc=1)
 
-        # ms, bounds = chen_musco(min(evals), max(evals), w=w, m=krylov_size, center=center,
-        #                                      radius=radius,
-        #                                      starts=bound_n // krylov_size + 1, f=func_scalar)
-        # name = f"rest pre {krylov_size}"
-        # plot_store[name + " bounds"] = bounds
-        # plot_store[name + " ms"] = ms
-        # axs[j].plot(ms, exact_norm * bounds, linestyle="-", c=colors[i], label="CGMM")
-
         i += 1
         ms, bounds = restarted_post_no_kappa(t * A, u0.flatten(), H[:krylov_size, :krylov_size], w=w, center=center,
                                              radius=radius,
@@ -191,6 +184,6 @@ if __name__ == "__main__":
         N}\times{N}" + "}$")
     postprocess_style()
     fig.tight_layout()
-    fig.savefig(os.path.join(root_path, f"figures/bounds_exp_heat_{n}_restarts_{norm_name}-norm.png"))
+    # fig.savefig(os.path.join(root_path, f"figures/bounds_exp_heat_{n}_restarts_{norm_name}-norm.png"))
     plt.show()
     1 + 1

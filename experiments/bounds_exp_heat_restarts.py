@@ -17,11 +17,10 @@ def get_index(final_size: int, krylov_size: int) -> list:
     return idx
 
 
-def prepare_starting_vector2(evecs, n: int):
-    rng = np.random.default_rng(42425)
-    evecs = rng.normal(0, 10, (n ** 3, 1))
-    # return evecs / scipy.linalg.norm(evecs)
-    return (evecs / scipy.linalg.norm(evecs))
+def prepare_starting_vector2(evecs, n: int, norm=scipy.linalg.norm):
+    rng = np.random.default_rng(33)
+    evecs = rng.random((n ** 3, 1))
+    return (evecs / norm(evecs))
 
 
 def restarted_lanczos(A, b: np.array, krylov_size: int = np.inf, *, max_starts: int = 1,

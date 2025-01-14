@@ -6,29 +6,34 @@ if __name__ == '__main__':
     setup_latex()
     fig, ax = get_fig_ax()
     colors = Colors()
-    plot_store = np.load("artifacts/plot_store_bounds_exp_heat_25_A-norm.npz")
+    plot_storeA = np.load("artifacts/plot_store_bounds_exp_heat_25_A-norm.npz")
+    plot_store2 = np.load("artifacts/plot_store_bounds_exp_heat_25_2-norm.npz")
 
-    lanc_plot = ax.plot(plot_store["Lanczos" + " ids"], plot_store["Lanczos" + " errors"], color='black')
-    exact_norm = plot_store["exact norm"]
+    ax.plot(plot_store2["Lanczos" + " ids"], plot_store2["Lanczos" + " errors"], color='black')
+    # lanc_plot = ax.plot(plot_storeA["Lanczos" + " ids"], plot_storeA["Lanczos" + " errors"], color='black')
+    exact_normA = plot_storeA["exact norm"]
+    evals = plot_store2["evals"]
     i = 0
-    ax.plot(plot_store["HL" + " ms"], plot_store["HL" + " bounds"], label="HL", linestyle="-", c=colors[i])
+    ax.plot(plot_store2["HL" + " ms"], plot_store2["HL" + " bounds"], label="HL", linestyle="-", c=colors[i])
 
     i += 1
     name = f"CGMM prio"
-    ax.plot(plot_store["CGMM prio" + " ms"], exact_norm * plot_store["CGMM prio" + " bounds"], label="CGMM",
+    ax.plot(plot_storeA["CGMM prio" + " ms"],
+            exact_normA * np.sqrt(max(np.abs(evals))) * plot_storeA["CGMM prio" + " bounds"], label="CGMM",
             linestyle="-", c=colors[i])
 
-    ax.plot(plot_store["CGMM prio nk" + " ms"], plot_store["CGMM prio nk" + " bounds"], linestyle=":",
+    ax.plot(plot_store2["CGMM prio nk" + " ms"], plot_store2["CGMM prio nk" + " bounds"], linestyle=":",
             c=colors.get(i, False))
 
     i += 1
-    ax.plot(plot_store["CGMM post nk" + " ms"], plot_store["CGMM post nk" + " bounds"], linestyle=":",
+    ax.plot(plot_store2["CGMM post nk" + " ms"], plot_store2["CGMM post nk" + " bounds"], linestyle=":",
             c=colors.get(i, False))
-    ax.plot(plot_store["CGMM post" + " ms"], exact_norm * plot_store["CGMM post" + " bounds"], label="CGMM",
+    ax.plot(plot_storeA["CGMM post" + " ms"],
+            np.sqrt(max(np.abs(evals))) * exact_normA * plot_storeA["CGMM post" + " bounds"], label="CGMM",
             linestyle="--", c=colors[i])
 
     i += 1
-    ax.plot(plot_store["Saad post" + " ms"], plot_store["Saad post" + " bounds"], label="S", linestyle="--",
+    ax.plot(plot_store2["Saad post" + " ms"], plot_store2["Saad post" + " bounds"], label="S", linestyle="--",
             c=colors[i])
 
     ax.set_yscale("log")
@@ -38,4 +43,5 @@ if __name__ == '__main__':
     ax.legend(framealpha=.5, scatterpoints=1, numpoints=1)
     postprocess_style()
     fig.tight_layout()
-    plt.savefig("figures/bounds_exp_heat_25_A-norm")
+    plt.savefig("figures/bounds_exp_heat_25_2-norm")
+    fig.show()

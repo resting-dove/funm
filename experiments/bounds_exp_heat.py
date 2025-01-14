@@ -51,6 +51,7 @@ if __name__ == "__main__":
     A = 1 / h ** 2 * lap.tosparse()
     t = 0.1
     evals = t / h ** 2 * lap.eigenvalues(N)
+    plot_store["evals"] = (min(evals), max(evals))
     print("evals gotten")
 
 
@@ -64,7 +65,7 @@ if __name__ == "__main__":
     center, w = min(evals), 0
     radius = np.abs(center - w)
     bound_n = 200
-    norm_name = "A"
+    norm_name = "2"
     apply_err0 = True
 
     if f"evecs_heat_{n}_{t}.npy" in os.listdir(os.path.join(root_path, "precalculated")):

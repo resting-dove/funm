@@ -72,7 +72,7 @@ if __name__ == "__main__":
     func_sparse = funm_expm_sparse
     func_scalar = np.exp
     bound_n = 550
-    norm_name = "A"
+    norm_name = "2"
 
 
     def A_norm(x, axis=None):

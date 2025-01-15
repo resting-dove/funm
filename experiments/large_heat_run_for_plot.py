@@ -73,7 +73,7 @@ if __name__ == "__main__":
     func_sparse_sym = expm_sparse_tridiag
     func_scalar = np.exp
     bound_n = 550
-    norm_name = "A"
+    norm_name = "2"
     exact_n = 3375
 
     u0 = prepare_starting_vector3(n)

@@ -7,7 +7,7 @@ if __name__ == '__main__':
     fig, ax = get_fig_ax()
     colors = Colors()
     markers = ["o", "^"]
-    plot_store = np.load("artifacts/plot_storelarge_heat50_A-norm.npz")
+    plot_store = np.load("artifacts/plot_storelarge_heat50_2-norm.npz")
 
     markers = ["o", "^", "x"]
     for j, krylov_size in enumerate([20, 10, 6]):
@@ -25,4 +25,4 @@ if __name__ == '__main__':
     ax.legend(framealpha=.5, scatterpoints=1, numpoints=1)
     postprocess_style()
     fig.tight_layout()
-    fig.savefig("figures/large_heat_50_restarts_A-norm")
+    fig.savefig("figures/large_heat_50_restarts_2-norm")

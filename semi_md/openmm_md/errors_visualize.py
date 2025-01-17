@@ -136,7 +136,7 @@ if __name__ == '__main__':
     ax.set_yscale("log")
     # ax.set_ylim(bottom=np.finfo(np.float64).eps / 100)
     ax.set_xlabel('t [fs]')
-    ax.set_ylabel('max rel. error')
+    # ax.set_ylabel('max rel. error')
     ax.legend()
     postprocess_style()
     fig.tight_layout()

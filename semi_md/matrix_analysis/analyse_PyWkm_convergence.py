@@ -14,9 +14,8 @@ from experiments.utils import get_fig_ax, Colors, postprocess_style, get_fig_axs
 root_path = os.getcwd()
 
 
-def compute_error(x, x_true, rtol, atol):
-    e = (x - x_true) / (atol + rtol * np.abs(x_true))
-    return np.linalg.norm(e, axis=0) / np.sqrt(e.shape[0])
+def compute_error(x, x_true, rtol, atol, norm=scipy.linalg.norm):
+    return norm(x - x_true) / norm(atol + rtol * x_true)
 
 
 def cos_sqrt(x):

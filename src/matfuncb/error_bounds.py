@@ -334,10 +334,10 @@ def get_det_swz_tridiag(T, w=0.0, z=0.0, return_all=False):
         num.append(a_w * num[-1] - b * c * num[-2])
         den.append(a_z * den[-1] - b * c * den[-2])
         f.append(num[-1] / den[-1])
-        if i > 1 and i % 4 == 0:
-            factor = min(np.abs(num[1]), np.abs(den[1]))
-            num[-2:] = num[-2:] / factor
-            den[-2:] = den[-2:] / factor
+        if i > 1 and i % 2 == 0:
+            factor = min(np.abs(num[-1]), np.abs(den[-1]))
+            num[-2:] = [num[-2] / factor, num[-1] / factor]
+            den[-2:] = [den[-2] / factor, den[-1] / factor]
     if not return_all:
         return f[-1]
     else:
@@ -403,29 +403,56 @@ def chen_musco_post_no_kappa(A, b, T: np.array, w: float, center: float, radius:
     return np.arange(m + 1), integral / 2 / np.pi * cg_bound
 
 
-def restarted_post_no_kappa(A, b, T_small: np.array, w: float, center: float, radius: float, starts=1, f=np.exp,
+def restarted_mixed_no_kappa(A, b, T_small: np.array, w: float, center: float, radius: float, starts=1, f=np.exp,
                             norm=scipy.linalg.norm):
-    """Variation of the Chen et al. bound above but for restarted Lanczos."""
+    """Variation of the Chen et al. bound above but for restarted Lanczos.
+
+    In this variation we have already calculated the first restart and estimate
+        det(h_{w,z}(T_{km})\approx det(h_{w,z}(T_{m})^k.
+    """
     ritz = np.sort(scipy.linalg.eigvals(T_small))
     sm_eval = ritz[0]
     la_eval = ritz[-1]
     assert w < sm_eval or w > la_eval
-
     rs = np.arange(0, starts + 1)
 
     a2c = lambda theta: center + radius * (np.cos(theta) + 1j * np.sin(theta))
     dr = lambda theta: np.abs(radius * (-np.sin(theta) + 1j * np.cos(theta)))
     F = lambda theta: np.abs(f(a2c(theta)))
     # H_w_z = lambda theta: bound_h_w_z(w, a2c(theta), sm_eval, la_eval)
-    H_w_z = lambda theta: 1
+    H_w_z = lambda theta: np.ones_like(theta)
     Dets = lambda theta: np.abs(get_det_swz_tridiag(T_small, w, a2c(theta))) ** (rs)
     integrand = lambda theta: F(theta) * H_w_z(theta) * Dets(theta) * dr(theta)
     integral, abserr = scipy.integrate.quad_vec(integrand, 0, 2 * np.pi)
-    if np.any(abserr > integral):
-        print(f"integral: {integral}, abserr: {abserr}")
 
     m = T_small.shape[0]
     cg_bound = get_restarted_cg_errors(A, w, b, m, starts=starts, norm=norm)
+    return np.arange(0, (starts + 1) * m, m), integral / 2 / np.pi * cg_bound
+
+
+def restarted_post_no_kappa(A, b, T_small: np.array, w: float, m:int, center: float, radius: float, f=np.exp,
+                            norm=scipy.linalg.norm):
+    """Variation of the Chen et al. bound above but for restarted Lanczos.
+
+    This is the true a-posteriori version of the restarted bound."""
+    ritz = np.sort(scipy.linalg.eigvals(T_small))
+    sm_eval = ritz[0]
+    la_eval = ritz[-1]
+    assert w < sm_eval or w > la_eval
+
+    starts = T_small.shape[0] // m
+    a2c = lambda theta: center + radius * (np.cos(theta) + 1j * np.sin(theta))
+    dr = lambda theta: np.abs(radius * (-np.sin(theta) + 1j * np.cos(theta)))
+    F = lambda theta: np.abs(f(a2c(theta)))
+    # H_w_z = lambda theta: bound_h_w_z(w, a2c(theta), sm_eval, la_eval)
+    H_w_z = lambda theta: np.ones_like(theta)
+    Dets = lambda theta: np.abs(get_det_swz_tridiag(T_small, w, a2c(theta), return_all=True)[::m])
+    integrand = lambda theta: F(theta) * H_w_z(theta) * Dets(theta) * dr(theta)
+    integral, abserr = scipy.integrate.quad_vec(integrand, 0, 2 * np.pi)
+
+    cg_bound = get_restarted_cg_errors(A, w, b, m, starts=starts, norm=norm)
+    # print("cg", cg_bound)
+    # print("dets", np.abs(get_det_swz_tridiag(T_small, w, a2c(np.pi), return_all=True)))
     return np.arange(0, (starts + 1) * m, m), integral / 2 / np.pi * cg_bound
 
 

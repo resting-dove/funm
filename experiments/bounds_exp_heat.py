@@ -98,6 +98,10 @@ if __name__ == "__main__":
         exact_norm = 1
         print(f"Exact norm: {norm(exact)}")
     plot_store["exact norm"] = exact_norm
+    lin_error_0 = A_norm(scipy.sparse.linalg.spsolve(t * A - w * scipy.sparse.eye(*A.shape), u0))
+    print(f"Linear error 0: {lin_error_0}")
+    plot_store["lin_error_0"] = lin_error_0
+
     fig, ax = get_fig_ax()
     colors = Colors()
     i = 0
@@ -112,7 +116,7 @@ if __name__ == "__main__":
     name = f"CGMM prio"
     plot_store[name + " bounds"] = bounds
     plot_store[name + " ms"] = ms
-    ax.plot(ms, exact_norm * bounds, label="CGMM", linestyle="-", c=colors[i])
+    ax.plot(ms, lin_error_0 * bounds, label="CGMM", linestyle="-", c=colors[i])
 
     ms, bounds = chen_musco_no_kappa(t * A, u0.flatten(), min(evals), max(evals), w=w, n=bound_n, f=func_scalar, center=center,
                             radius=radius, norm=norm)

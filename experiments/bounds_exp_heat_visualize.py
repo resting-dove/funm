@@ -12,6 +12,7 @@ if __name__ == '__main__':
     ax.plot(plot_store2["Lanczos" + " ids"], plot_store2["Lanczos" + " errors"], color='black')
     # lanc_plot = ax.plot(plot_storeA["Lanczos" + " ids"], plot_storeA["Lanczos" + " errors"], color='black')
     exact_normA = plot_storeA["exact norm"]
+    lin_error_0 = plot_storeA["lin_error_0"]
     evals = plot_store2["evals"]
     i = 0
     ax.plot(plot_store2["HL" + " ms"], plot_store2["HL" + " bounds"], label="HL", linestyle="-", c=colors[i])
@@ -19,7 +20,7 @@ if __name__ == '__main__':
     i += 1
     name = f"CGMM prio"
     ax.plot(plot_storeA["CGMM prio" + " ms"],
-            exact_normA * np.sqrt(max(np.abs(evals))) * plot_storeA["CGMM prio" + " bounds"], label="CGMM",
+            lin_error_0 * np.sqrt(max(np.abs(evals))) * plot_storeA["CGMM prio" + " bounds"], label="CGMM",
             linestyle="-", c=colors[i])
 
     ax.plot(plot_store2["CGMM prio nk" + " ms"], plot_store2["CGMM prio nk" + " bounds"], linestyle=":",
@@ -29,7 +30,7 @@ if __name__ == '__main__':
     ax.plot(plot_store2["CGMM post nk" + " ms"], plot_store2["CGMM post nk" + " bounds"], linestyle=":",
             c=colors.get(i, False))
     ax.plot(plot_storeA["CGMM post" + " ms"],
-            np.sqrt(max(np.abs(evals))) * exact_normA * plot_storeA["CGMM post" + " bounds"], label="CGMM",
+            np.sqrt(max(np.abs(evals))) * lin_error_0 * plot_storeA["CGMM post" + " bounds"], label="CGMM",
             linestyle="--", c=colors[i])
 
     i += 1

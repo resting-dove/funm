@@ -10,7 +10,8 @@ from experiments.utils import get_fig_ax, Colors, postprocess_style, setup_latex
 from gautschiIntegrators.gautschiIntegrators.lanczos.LanczosEvaluator import LanczosWkmEvaluator, \
     RestartedLanczosWkmEvaluator
 from pywkm.wkm import wkm
-from src.matfuncb.error_bounds import hochbruck_lubich, chen_musco, afanasjew_post_for_plot, restarted_post_no_kappa
+from src.matfuncb.error_bounds import hochbruck_lubich, chen_musco, afanasjew_post_for_plot, restarted_post_no_kappa, \
+    restarted_mixed_no_kappa
 
 root_path = os.getcwd()
 
@@ -44,7 +45,7 @@ if __name__ == '__main__':
     b = np.load("OpenMM_vectors_0.0femtosecond.npz")["xi"]
     N = A.shape[0]
 
-    time_step = 10 * unit.femtosecond
+    time_step = 150 * unit.femtosecond
     t = time_step.value_in_unit_system(unit.md_unit_system)
 
     evals = scipy.sparse.linalg.eigsh(A, return_eigenvectors=False, which="BE", k=5)
@@ -60,7 +61,7 @@ if __name__ == '__main__':
     func_scalar = cos_sqrt
     center, w = t**2* max(evals), min(-0.1, t ** 2 * 2 * min(evals))  # t ** 2 * min(evals), min(-0.1, t ** 2 * 2 * min(evals))  #
     radius = np.abs(center - w) * 2  # max(evals) * t ** 2 - w  #
-    bound_n = 40
+    bound_n = 90
     norm_name = "2"
     exact_n = 2000
 
@@ -144,7 +145,7 @@ if __name__ == '__main__':
     j += 1
 
     prev = 0
-    for k in [2, 4, 8]:  # np.arange(1, 50, 10):
+    for k in [2, 4, 8]:
         rs = np.arange(bound_n // k)
         rupdatecA = []
         rks = []
@@ -180,6 +181,14 @@ if __name__ == '__main__':
         axs[1].plot(ms, bounds, linestyle=":", c=colors.get(j, False))
         if k in [2, 8]:
             axs[0].plot(ms, bounds, linestyle=":", c=colors.get(j, False))
+
+        ms, bounds = restarted_mixed_no_kappa(t ** 2 * A, b, rlanczos.rlanczos.T[:k, :k], w=w, center=center,
+                                             radius=radius,
+                                             starts=bound_n // k + 1, f=func_scalar, norm=norm)
+        bounds = bounds / exact_norm * np.abs(center - w) / radius  # to make it relative and account for radius
+        name = f"rest mixed nk {k}"
+        plot_store[name + " bounds"] = bounds
+        plot_store[name + " ms"] = ms
 
         # j += 1
         ms, bounds = afanasjew_post_for_plot(rlanczos.rlanczos.T, rlanczos.rlanczos.v_next, t ** 2 * A, k,

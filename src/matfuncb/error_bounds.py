@@ -203,7 +203,7 @@ def chen_musco_no_kappa(A, b, sm_eval: float, la_eval: float, w: float, n: int, 
     “Error Bounds for Lanczos-Based Matrix Function Approximation,”
     SIAM J. Matrix Anal. Appl., vol. 43, no. 2, pp. 787–811, Jun. 2022, doi: 10.1137/21M1427784.
     """
-    m = np.arange(1, n)
+    m = np.arange(n + 1)
     center, radius, kappa = setup_circle_and_kappa(sm_eval, la_eval, w, center, radius)
     integral_part = np.abs(radius) * np.max(
         np.abs(f(get_points_on_circle(center, radius, 20))))
@@ -457,6 +457,32 @@ def restarted_post_no_kappa(A, b, T_small: np.array, w: float, m:int, center: fl
 
 
 def restarted_post(T_small: np.array, w: float, starts=1, f=np.exp, fix_0_eval=True):
+    """
+    Variation of the Chen et al. bound for restarted Lanczos.
+    """
+    ritz = np.sort(scipy.linalg.eigvals(T_small))
+    sm_eval = ritz[0]
+    la_eval = ritz[-1]
+    c, r, kappa = setup_circle_and_kappa(sm_eval, la_eval, w, fix_0_eval=fix_0_eval)
+
+    m = T_small.shape[0] // starts
+    a2c = lambda theta: c + r * (np.cos(theta) + 1j * np.sin(theta))
+    dr = lambda theta: np.abs(r * (-np.sin(theta) + 1j * np.cos(theta)))
+    F = lambda theta: np.abs(f(a2c(theta)))
+    # H_w_z = lambda theta: bound_h_w_z(w, a2c(theta), sm_eval, la_eval)
+    H_w_z = lambda theta: 1
+    Dets = lambda theta: np.abs(get_det_swz_tridiag(T_small, w, a2c(theta), return_all=True)[::m])
+    integrand = lambda theta: F(theta) * H_w_z(theta) * Dets(theta) * dr(theta)
+    integral, abserr = scipy.integrate.quad_vec(integrand, 0, 2 * np.pi)
+    if np.any(abserr > integral):
+        print(f"integral: {integral}, abserr: {abserr}")
+
+    m = T_small.shape[0]
+    cg_bound = get_restarted_cg_bound(kappa, m, starts)
+    return np.arange(m, (starts + 1) * m, m), integral / 2 / np.pi * cg_bound
+
+
+def restarted_mixed(T_small: np.array, w: float, starts=1, f=np.exp, fix_0_eval=True):
     """
     Variation of the Chen et al. bound for restarted Lanczos.
     """

@@ -6,13 +6,14 @@ from openmm import Integrator
 import openmm.unit as unit
 
 from gautschiIntegrators.gautschiIntegrators.lanczos.LanczosEvaluator import LanczosWkmEvaluator
-from gautschiIntegrators.gautschiIntegrators.one_step import OneStepF, OneStepGS99, OneStep217
-from gautschiIntegrators.gautschiIntegrators.two_step import TwoStepIntegratorF
-from semi_md.computeK import compute_K_with_dict
+from gautschiIntegrators.gautschiIntegrators.one_step import *
+from gautschiIntegrators.gautschiIntegrators.two_step import *
+from semi_md.computeK import compute_K_with_dict, compute_K_with_force
 from semi_md.rotations import get_Rx
 
 integrators = {
     "TwoStepF": TwoStepIntegratorF,
+    "TwoStep216": TwoStepIntegrator2_16,
     "OneStepF": OneStepF,
     "OneStepGS99": OneStepGS99,
     "OneStep217": OneStep217
@@ -45,6 +46,28 @@ class SemiAnalyticIntegrator(mm.CustomIntegrator):
         self.K = compute_K_with_dict(self.original_positions,
                                      forcefield.get_parameter_handler("Bonds").find_matches(openff_topology, True),
                                      unit.md_unit_system)
+        m = self.get_masses()
+        self.M_sqrt = scipy.sparse.kron(scipy.sparse.diags_array(np.sqrt(m)),
+                                        np.eye(3), format="coo").tocsr()
+        self.M_sqrt_inv = scipy.sparse.kron(scipy.sparse.diags_array(1 / np.sqrt(m)),
+                                            np.eye(3),
+                                            format="coo").tocsr()
+        self.integrator = integrators[integrator_method](self.getStepSize().value_in_unit_system(unit.md_unit_system),
+                                                         g=self.md_nonlinearity, t_end=np.inf,
+                                                         x0=self.original_positions.flatten(),
+                                                         v0=self.original_positions.flatten() * 0,
+                                                         evaluator=LanczosWkmEvaluator(krylov_size=80)
+                                                         )
+
+    def setup_openmm(self, simulation, harmonicBondForce: mm.HarmonicBondForce, integrator_method="TwoStepF"):
+        self.simulation = simulation
+        state: mm.State = self.simulation.context.getState(getPositions=True,
+                                                           getVelocities=True, enforcePeriodicBox=False)
+        self.original_positions = state.getPositions(True)
+        self.openff_topology = None
+        self.K = compute_K_with_force(self.original_positions,
+                                   harmonicBondForce,
+                                   unit.md_unit_system)
         m = self.get_masses()
         self.M_sqrt = scipy.sparse.kron(scipy.sparse.diags_array(np.sqrt(m)),
                                         np.eye(3), format="coo").tocsr()
@@ -157,8 +180,8 @@ class WorkReporter(object):
             A dictionary describing the required information for the next report
         """
         steps = self._reportInterval - simulation.currentStep % self._reportInterval
-        # return {'steps':steps, 'periodic':None, 'include':[]}
-        return [steps, False, False, False, False]  # OpenMM 8.1, the line above is 8.2
+        return {'steps':steps, 'periodic':None, 'include':[]}
+        # return [steps, False, False, False, False]  # OpenMM 8.1, the line above is 8.2
 
     def report(self, simulation, state):
         """Generate a report.

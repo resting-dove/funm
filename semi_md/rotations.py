@@ -26,9 +26,8 @@ def get_Rx_per_molecule(r_current, r_old, openff_topology) -> (scipy.sparse.csr_
     return RxLarge.tocsr(), Rx_invLarge.tocsr()
 
 def get_Rx(r_current, r_old, openff_topology) -> (scipy.sparse.csr_array, scipy.sparse.csr_array):
-    relevant_atoms = list(range(openff_topology.n_atoms))
     # Rx = scipy.sparse.csr_array(get_rotation(r_current[relevant_atoms], r_old[relevant_atoms]))
-    RxRot = scipy.spatial.transform.Rotation.align_vectors(r_old[relevant_atoms], r_current[relevant_atoms])[0]
+    RxRot = scipy.spatial.transform.Rotation.align_vectors(r_old, r_current)[0]
     RxLarge: scipy.sparse.csr_array = scipy.sparse.block_diag([RxRot.as_matrix()] * len(r_current), format="csr")
     Rx_invLarge: scipy.sparse.csr_array = scipy.sparse.block_diag([RxRot.inv().as_matrix()] * len(r_current), format="csr")
     # Rx_invLarge = RxLarge.T

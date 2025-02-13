@@ -102,6 +102,7 @@ def compute_K_with_force(positions: np.array, force: openmm.HarmonicBondForce, u
     data = np.empty(4 * 9 * num_bonds)
     index = 0
     for bond_index in range(num_bonds):
+        # i, j, (r0, k) = force.getBondParameters(bond_index)  # For CustomBondForce used by Amoeba
         i, j, r0, k = force.getBondParameters(bond_index)
         k = k.value_in_unit_system(units)
         r0 = r0.value_in_unit_system(units)

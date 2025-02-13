@@ -170,6 +170,8 @@ def chen_musco(sm_eval: float, la_eval: float, w: float, n: int, f=np.exp, *, ce
     integral_part = np.abs(radius) * np.max(
         np.abs(f(get_points_on_circle(center, radius, 20))))
     cg_bound = get_cg_bound(kappa, m)
+    # print("integral", integral_part)
+    # print("cg_bound", cg_bound)
     result = integral_part * cg_bound
     return m, result
 
@@ -427,6 +429,8 @@ def restarted_mixed_no_kappa(A, b, T_small: np.array, w: float, center: float, r
 
     m = T_small.shape[0]
     cg_bound = get_restarted_cg_errors(A, w, b, m, starts=starts, norm=norm)
+    # print(f"rest mixed nk {m}: cg", cg_bound)
+    # print(f"rest mixed nk {m}: dets", np.abs(get_det_swz_tridiag(T_small, w, a2c(np.pi), return_all=True)))
     return np.arange(0, (starts + 1) * m, m), integral / 2 / np.pi * cg_bound
 
 
@@ -451,8 +455,8 @@ def restarted_post_no_kappa(A, b, T_small: np.array, w: float, m:int, center: fl
     integral, abserr = scipy.integrate.quad_vec(integrand, 0, 2 * np.pi)
 
     cg_bound = get_restarted_cg_errors(A, w, b, m, starts=starts, norm=norm)
-    # print("cg", cg_bound)
-    # print("dets", np.abs(get_det_swz_tridiag(T_small, w, a2c(np.pi), return_all=True)))
+    # print(f"post nk {m}: cg", cg_bound)
+    # print(f"post nk {m}: dets", np.abs(get_det_swz_tridiag(T_small, w, a2c(np.pi), return_all=True)))
     return np.arange(0, (starts + 1) * m, m), integral / 2 / np.pi * cg_bound
 
 
